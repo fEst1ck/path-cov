@@ -11,7 +11,6 @@ use crate::re::RegExp;
 #[derive(Debug)]
 pub struct GNFA<Alphabet> {
     start_state: NodeIndex,
-    // the only accepting state
     accepting_state: NodeIndex,
     the_graph: Graph<(), RegExp<Alphabet>>,
 }
