@@ -91,6 +91,7 @@ impl<Alphabet: Eq + Clone> GNFA<Alphabet> {
                 let e_out = self.the_graph.edge_weight(out_edge).unwrap().clone();
                 let e_new = match e_rip {
                     Some(_e_rip_id) => {
+                        // e_in(e_rip)*e_out
                         RegExp::concat(
                             e_in,
                             RegExp::concat(
