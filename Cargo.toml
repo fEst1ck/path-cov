@@ -7,3 +7,5 @@ edition = "2021"
 
 [dependencies]
 petgraph = "0.6.4"
+byteorder = "1.4.3"
+sha2 = "0.10.7"
