@@ -201,6 +201,25 @@ mod tests {
     }
 
     #[test]
+    fn test1_() {
+        use RegExp::*;
+        // 1(21)*3
+        let re : RegExp<_, ()> = Concat(
+            Box::new(Literal(1)),
+            Box::new(Concat(
+                Box::new(Star(
+                    Box::new(Concat(Box::new(Literal(2)), Box::new(Literal(1)))))),
+                Box::new(Literal(3)))
+            )
+        );
+        let s = vec![1, 2, 1, 2, 1, 2, 1, 3];
+        let k = 2;
+        let (v, _) = re.parse_k(&s, &HashMap::new(), k).unwrap();
+        let reduced = v.into_vec();
+        assert!(reduced == vec![1, 2, 1, 2, 1, 3]);
+    }
+
+    #[test]
     fn test2() {
         // (12)*(13)
         let re: RegExp<_, ()> = RegExp::concat(RegExp::star(RegExp::concat(RegExp::literal(1), RegExp::literal(2))), RegExp::concat(RegExp::literal(1), RegExp::literal(3)));
@@ -208,6 +227,17 @@ mod tests {
         let (v, _) = re.parse_inf(&s, &HashMap::new()).unwrap();
         let k = 2;
         let reduced = v.reduce(k);
+        assert!(reduced == vec![1, 2, 1, 2, 1, 3]);
+    }
+
+    #[test]
+    fn test2_() {
+        // (12)*(13)
+        let re: RegExp<_, ()> = RegExp::concat(RegExp::star(RegExp::concat(RegExp::literal(1), RegExp::literal(2))), RegExp::concat(RegExp::literal(1), RegExp::literal(3)));
+        let s = vec![1, 2, 1, 2, 1, 2, 1, 3];
+        let k = 2;
+        let (v, _) = re.parse_k(&s, &HashMap::new(), k).unwrap();
+        let reduced = v.into_vec();
         assert!(reduced == vec![1, 2, 1, 2, 1, 3]);
     }
 }
