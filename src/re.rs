@@ -1,9 +1,10 @@
 #[derive(Debug, Clone)]
-pub enum RegExp<Alphabet> {
-	Literal(Alphabet),
-	Concat(Box<RegExp<Alphabet>>, Box<RegExp<Alphabet>>),
-	Alter(Box<RegExp<Alphabet>>, Box<RegExp<Alphabet>>),
-	Star(Box<RegExp<Alphabet>>)
+pub enum RegExp<Alphabet, Name> {
+    Var(Name),
+	Literal(Alphabet, Name),
+	Concat(Box<RegExp<Alphabet, Name>>, Box<RegExp<Alphabet, Name>>),
+	Alter(Box<RegExp<Alphabet, Name>>, Box<RegExp<Alphabet, Name>>),
+	Star(Box<RegExp<Alphabet, Name>>)
 }
 
 impl<Alphabet: Eq + Clone> RegExp<Alphabet> {
