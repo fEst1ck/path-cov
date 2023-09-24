@@ -1,7 +1,7 @@
 #[derive(Debug, Clone)]
 pub enum RegExp<Alphabet, Name> {
     Var(Name),
-	Literal(Alphabet, Name),
+	Literal(Alphabet),
 	Concat(Box<RegExp<Alphabet, Name>>, Box<RegExp<Alphabet, Name>>),
 	Alter(Box<RegExp<Alphabet, Name>>, Box<RegExp<Alphabet, Name>>),
 	Star(Box<RegExp<Alphabet, Name>>)
