@@ -156,6 +156,25 @@ impl<Alphabet> Val<Alphabet> {
             },
         }
     }
+
+    pub fn into_vec(self) -> Vec<Alphabet> {
+        match self {
+            Val::Literal(c) => vec![c],
+            Val::Concat(v1, v2) => {
+                let mut r1 = v1.into_vec();
+                let mut r2 = v2.into_vec();
+                r1.append(&mut r2);
+                r1
+            }
+            Val::Star(vs) => {
+                let mut res = Vec::new();
+                for v in vs {
+                    res.append(&mut v.into_vec())
+                }
+                res
+            }
+        }
+    }
 }
 
 #[cfg(test)]
