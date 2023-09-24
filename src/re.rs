@@ -95,7 +95,7 @@ impl<Alphabet: Eq + Clone, Name: Eq + Clone + Hash> RegExp<Alphabet, Name> {
                 }
             }
             RegExp::Star(r) => {
-                let (vs, s1) = r.parse_star_inf(s, env, k);
+                let (vs, s1) = r.parse_star_k(s, env, k);
                 Some((Val::Star(vs), s1))
             }
 		}
@@ -103,7 +103,7 @@ impl<Alphabet: Eq + Clone, Name: Eq + Clone + Hash> RegExp<Alphabet, Name> {
 
     fn parse_star_inf<'a>(&self, mut s: &'a [Alphabet], env: &HashMap<Name, Self>) -> (Vec<Val<Alphabet>>, &'a [Alphabet]) {
         let mut acc = Vec::new();
-        while let Some((val, new_s)) = self.parse(s, env) {
+        while let Some((val, new_s)) = self.parse_inf(s, env) {
             s = new_s;
             acc.push(val);
         }
@@ -112,7 +112,7 @@ impl<Alphabet: Eq + Clone, Name: Eq + Clone + Hash> RegExp<Alphabet, Name> {
 
     fn parse_star_k<'a>(&self, mut s: &'a [Alphabet], env: &HashMap<Name, Self>, k: usize) -> (Vec<Val<Alphabet>>, &'a [Alphabet]) {
         let mut acc = Vec::new();
-        while let Some((val, new_s)) = self.parse(s, env) {
+        while let Some((val, new_s)) = self.parse_k(s, env, k) {
             s = new_s;
             if acc.len() == k {
                 continue;
