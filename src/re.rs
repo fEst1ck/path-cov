@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+use std::hash::Hash;
+
 #[derive(Debug, Clone)]
 pub enum RegExp<Alphabet, Name> {
     Var(Name),
@@ -7,12 +10,16 @@ pub enum RegExp<Alphabet, Name> {
 	Star(Box<RegExp<Alphabet, Name>>)
 }
 
-impl<Alphabet: Eq + Clone> RegExp<Alphabet> {
+impl<Alphabet: Eq + Clone, Name: Eq + Clone + Hash> RegExp<Alphabet, Name> {
+    pub fn var(x: Name) -> Self {
+        Self::Var(x)
+    }
+
     pub fn literal(c: Alphabet) -> Self {
         Self::Literal(c)
     }
 
-    pub fn concat(r1: RegExp<Alphabet>, r2: RegExp<Alphabet>) -> Self {
+    pub fn concat(r1: RegExp<Alphabet, Name>, r2: RegExp<Alphabet, Name>) -> Self {
         Self::Concat(Box::new(r1), Box::new(r2))
     }
 
@@ -24,8 +31,12 @@ impl<Alphabet: Eq + Clone> RegExp<Alphabet> {
         Self::Star(Box::new(r))
     }
 
-	pub fn parse<'a>(&self, s: &'a [Alphabet]) -> Option<(Val<Alphabet>, &'a [Alphabet])> {
+	pub fn parse_inf<'a>(&self, s: &'a [Alphabet], env: &HashMap<Name, RegExp<Alphabet, Name>>) -> Option<(Val<Alphabet>, &'a [Alphabet])> {
 		match self {
+            RegExp::Var(x) => {
+                let re = env.get(x).expect("name doesn't exist in env");
+                re.parse_inf(s, env)
+            }
 			RegExp::Literal(c) => {
                 if s.is_empty() {
                     None
@@ -38,38 +49,78 @@ impl<Alphabet: Eq + Clone> RegExp<Alphabet> {
                 }
             }
             RegExp::Concat(r1, r2) => {
-                let (v1, s1) = r1.parse(s)?;
-                let (v2, s2) = r2.parse(s1)?;
+                let (v1, s1) = r1.parse_inf(s, env)?;
+                let (v2, s2) = r2.parse_inf(s1, env)?;
                 Some((Val::Concat(Box::new(v1), Box::new(v2)), s2))
             }
             RegExp::Alter(r1, r2 ) => {
-                match r1.parse(s) {
+                match r1.parse_inf(s, env) {
                     Some(res) => Some(res),
-                    None => r2.parse(s),
+                    None => r2.parse_inf(s, env),
                 }
             }
             RegExp::Star(r) => {
-                let (vs, s1) = r.parse_star1(s);
+                let (vs, s1) = r.parse_star_inf(s, env);
                 Some((Val::Star(vs), s1))
             }
 		}
 	}
 
-    fn parse_star0<'a>(&self, s: &'a [Alphabet]) -> (Vec<Val<Alphabet>>, &'a [Alphabet]) {
-        match self.parse(s) {
-            Some((v, s1)) => {
-                let (mut vs, s2) = self.parse_star0(s1);
-                vs.push(v);
-                (vs, s2)
-            },
-            None => (Vec::new(), s),
+    pub fn parse_k<'a>(&self, s: &'a [Alphabet], env: &HashMap<Name, RegExp<Alphabet, Name>>, k: usize) -> Option<(Val<Alphabet>, &'a [Alphabet])> {
+		match self {
+            RegExp::Var(x) => {
+                let re = env.get(x).expect("name doesn't exist in env");
+                re.parse_k(s, env, k)
+            }
+			RegExp::Literal(c) => {
+                if s.is_empty() {
+                    None
+                } else {
+                    if c == &s[0] {
+                        Some((Val::Literal(c.clone()), &s[1..]))
+                    } else {
+                        None
+                    }
+                }
+            }
+            RegExp::Concat(r1, r2) => {
+                let (v1, s1) = r1.parse_k(s, env, k)?;
+                let (v2, s2) = r2.parse_k(s1, env, k)?;
+                Some((Val::Concat(Box::new(v1), Box::new(v2)), s2))
+            }
+            RegExp::Alter(r1, r2 ) => {
+                match r1.parse_k(s, env, k) {
+                    Some(res) => Some(res),
+                    None => r2.parse_k(s, env, k),
+                }
+            }
+            RegExp::Star(r) => {
+                let (vs, s1) = r.parse_star_inf(s, env, k);
+                Some((Val::Star(vs), s1))
+            }
+		}
+	}
+
+    fn parse_star_inf<'a>(&self, mut s: &'a [Alphabet], env: &HashMap<Name, Self>) -> (Vec<Val<Alphabet>>, &'a [Alphabet]) {
+        let mut acc = Vec::new();
+        while let Some((val, new_s)) = self.parse(s, env) {
+            s = new_s;
+            acc.push(val);
         }
+        (acc, s)
     }
 
-    fn parse_star1<'a>(&self, s: &'a [Alphabet]) -> (Vec<Val<Alphabet>>, &'a [Alphabet]) {
-        let mut res = self.parse_star0(s);
-        res.0.reverse();
-        res
+    fn parse_star_k<'a>(&self, mut s: &'a [Alphabet], env: &HashMap<Name, Self>, k: usize) -> (Vec<Val<Alphabet>>, &'a [Alphabet]) {
+        let mut acc = Vec::new();
+        while let Some((val, new_s)) = self.parse(s, env) {
+            s = new_s;
+            if acc.len() == k {
+                continue;
+            } else {
+                acc.push(val);
+            }
+        }
+        (acc, s)
     }
 }
 
