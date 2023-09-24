@@ -185,7 +185,7 @@ mod tests {
     fn test1() {
         use RegExp::*;
         // 1(21)*3
-        let re = Concat(
+        let re : RegExp<_, ()> = Concat(
             Box::new(Literal(1)),
             Box::new(Concat(
                 Box::new(Star(
@@ -194,7 +194,7 @@ mod tests {
             )
         );
         let s = vec![1, 2, 1, 2, 1, 2, 1, 3];
-        let (v, _) = re.parse(&s).unwrap();
+        let (v, _) = re.parse_inf(&s, &HashMap::new()).unwrap();
         let k = 2;
         let reduced = v.reduce(k);
         assert!(reduced == vec![1, 2, 1, 2, 1, 3]);
@@ -203,9 +203,9 @@ mod tests {
     #[test]
     fn test2() {
         // (12)*(13)
-        let re = RegExp::concat(RegExp::star(RegExp::concat(RegExp::literal(1), RegExp::literal(2))), RegExp::concat(RegExp::literal(1), RegExp::literal(3)));
+        let re: RegExp<_, ()> = RegExp::concat(RegExp::star(RegExp::concat(RegExp::literal(1), RegExp::literal(2))), RegExp::concat(RegExp::literal(1), RegExp::literal(3)));
         let s = vec![1, 2, 1, 2, 1, 2, 1, 3];
-        let (v, _) = re.parse(&s).unwrap();
+        let (v, _) = re.parse_inf(&s, &HashMap::new()).unwrap();
         let k = 2;
         let reduced = v.reduce(k);
         assert!(reduced == vec![1, 2, 1, 2, 1, 3]);
