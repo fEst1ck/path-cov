@@ -1,17 +1,17 @@
 #[derive(Debug, Clone)]
-pub enum RegExp<T> {
-	Literal(T),
-	Concat(Box<RegExp<T>>, Box<RegExp<T>>),
-	Alter(Box<RegExp<T>>, Box<RegExp<T>>),
-	Star(Box<RegExp<T>>)
+pub enum RegExp<Alphabet> {
+	Literal(Alphabet),
+	Concat(Box<RegExp<Alphabet>>, Box<RegExp<Alphabet>>),
+	Alter(Box<RegExp<Alphabet>>, Box<RegExp<Alphabet>>),
+	Star(Box<RegExp<Alphabet>>)
 }
 
-impl<T: Eq + Clone> RegExp<T> {
-    pub fn literal(c: T) -> Self {
+impl<Alphabet: Eq + Clone> RegExp<Alphabet> {
+    pub fn literal(c: Alphabet) -> Self {
         Self::Literal(c)
     }
 
-    pub fn concat(r1: RegExp<T>, r2: RegExp<T>) -> Self {
+    pub fn concat(r1: RegExp<Alphabet>, r2: RegExp<Alphabet>) -> Self {
         Self::Concat(Box::new(r1), Box::new(r2))
     }
 
@@ -23,7 +23,7 @@ impl<T: Eq + Clone> RegExp<T> {
         Self::Star(Box::new(r))
     }
 
-	pub fn parse<'a>(&self, s: &'a [T]) -> Option<(Val<T>, &'a [T])> {
+	pub fn parse<'a>(&self, s: &'a [Alphabet]) -> Option<(Val<Alphabet>, &'a [Alphabet])> {
 		match self {
 			RegExp::Literal(c) => {
                 if s.is_empty() {
@@ -54,7 +54,7 @@ impl<T: Eq + Clone> RegExp<T> {
 		}
 	}
 
-    fn parse_star0<'a>(&self, s: &'a [T]) -> (Vec<Val<T>>, &'a [T]) {
+    fn parse_star0<'a>(&self, s: &'a [Alphabet]) -> (Vec<Val<Alphabet>>, &'a [Alphabet]) {
         match self.parse(s) {
             Some((v, s1)) => {
                 let (mut vs, s2) = self.parse_star0(s1);
@@ -65,21 +65,21 @@ impl<T: Eq + Clone> RegExp<T> {
         }
     }
 
-    fn parse_star1<'a>(&self, s: &'a [T]) -> (Vec<Val<T>>, &'a [T]) {
+    fn parse_star1<'a>(&self, s: &'a [Alphabet]) -> (Vec<Val<Alphabet>>, &'a [Alphabet]) {
         let mut res = self.parse_star0(s);
         res.0.reverse();
         res
     }
 }
 
-pub enum Val<T> {
-	Literal(T),
-	Concat(Box<Val<T>>, Box<Val<T>>),
-	Star(Vec<Val<T>>)
+pub enum Val<Alphabet> {
+	Literal(Alphabet),
+	Concat(Box<Val<Alphabet>>, Box<Val<Alphabet>>),
+	Star(Vec<Val<Alphabet>>)
 }
 
-impl<T> Val<T> {
-    pub fn reduce(self, k: usize) -> Vec<T> {
+impl<Alphabet> Val<Alphabet> {
+    pub fn reduce(self, k: usize) -> Vec<Alphabet> {
         assert!(k != 0);
         match self {
             Val::Literal(c) => vec![c],
