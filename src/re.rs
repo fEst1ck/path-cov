@@ -3,7 +3,7 @@ use std::hash::Hash;
 
 #[derive(Debug, Clone)]
 pub enum RegExp<Alphabet, Name> {
-    Var(Name),
+	Var(Name),
 	Literal(Alphabet),
 	Concat(Box<RegExp<Alphabet, Name>>, Box<RegExp<Alphabet, Name>>),
 	Alter(Box<RegExp<Alphabet, Name>>, Box<RegExp<Alphabet, Name>>),
