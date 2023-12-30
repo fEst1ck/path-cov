@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::hash::Hash;
 
+/// Regular expressions over alphabet set `Alphabet`, and variable set `Name`
+/// a variable refers to an external regular expression
 #[derive(Debug, Clone)]
 pub enum RegExp<Alphabet, Name> {
     Var(Name),
@@ -115,6 +117,7 @@ impl<Alphabet: Eq + Clone, Name: Eq + Clone + Hash> RegExp<Alphabet, Name> {
         while let Some((val, new_s)) = self.parse_k(s, env, k) {
             s = new_s;
             if acc.len() == k {
+                // consumes more `self`, but don't push to `acc`
                 continue;
             } else {
                 acc.push(val);
@@ -124,6 +127,7 @@ impl<Alphabet: Eq + Clone, Name: Eq + Clone + Hash> RegExp<Alphabet, Name> {
     }
 }
 
+/// Result of parsing
 pub enum Val<Alphabet> {
     Literal(Alphabet),
     Concat(Box<Val<Alphabet>>, Box<Val<Alphabet>>),
