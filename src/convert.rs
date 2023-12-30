@@ -17,6 +17,22 @@ pub struct GNFA<Alphabet, Name> {
     the_graph: Graph<(), RegExp<Alphabet, Name>>,
 }
 
+// In our case, Alphabet is the BlockID, Name is the FunID
+#[derive(Debug, Clone)]
+pub enum Node<Alphabet, Name> {
+    Literal(Alphabet),
+    Var(Name)
+}
+
+impl<Alphabet, Name> Node<Alphabet, Name> {
+    pub fn to_re(self) -> RegExp<Alphabet, Name> {
+        match self {
+            Node::Literal(char) => RegExp::Literal(char),
+            Node::Var(var) => RegExp::Var(var),
+        }
+    }
+}
+
 impl<Alphabet: Eq + Clone, Name: Eq + Clone + Hash> GNFA<Alphabet, Name> {
     /// Construct a `GNFA` corresponding to cfg `g`.
     /// 
@@ -34,6 +50,29 @@ impl<Alphabet: Eq + Clone, Name: Eq + Clone + Hash> GNFA<Alphabet, Name> {
         );
         let start_state = the_graph.add_node(());
         the_graph.add_edge(start_state, entry, RegExp::Literal(g.node_weight(entry).unwrap().clone()));
+        Self {
+            start_state,
+            accepting_state: exit,
+            the_graph,
+        }
+    }
+
+    /// Construct a `GNFA` corresponding to cfg `g`.
+    /// 
+    /// The language accepted is the set of execution paths of `g`.
+    pub fn from_cfg1<E>(g: Graph<Node<Alphabet, Name>, E>, entry: NodeIndex, exit: NodeIndex) -> Self {
+        let mut the_graph = g.map(
+            |_node_id, _weight| {
+                ()
+            },
+            |edge_id, _weight| {
+                let dst_node_id = g.edge_endpoints(edge_id).unwrap().1;
+                let dst_node_weight = g.node_weight(dst_node_id).unwrap();
+                dst_node_weight.clone().to_re()
+            }
+        );
+        let start_state = the_graph.add_node(());
+        the_graph.add_edge(start_state, entry, g.node_weight(entry).unwrap().clone().to_re());
         Self {
             start_state,
             accepting_state: exit,
