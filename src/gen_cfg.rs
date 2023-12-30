@@ -5,6 +5,7 @@ use crate::convert::Node as Node;
 
 use petgraph::graph::Graph;
 
+#[derive(Debug)]
 pub struct CFG<BlockID, FunID> {
     pub(crate) id: FunID,
     pub(crate) block_entries: Vec<BlockEntry<BlockID, FunID>>,
@@ -49,6 +50,7 @@ impl<BlockID: Clone + Ord, FunID: Clone> CFG<BlockID, FunID> {
 
 /// Contains a block id, its successors blocks,
 /// and optionally a function id if the block is a call block
+#[derive(Debug)]
 pub struct BlockEntry<BlockID, FunID> {
     pub(crate) id: BlockID,
     pub(crate) calls: Option<FunID>,
