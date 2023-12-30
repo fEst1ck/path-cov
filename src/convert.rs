@@ -1,3 +1,5 @@
+use std::hash::Hash;
+
 use petgraph::graph::{
     Graph, NodeIndex,
 };
@@ -7,15 +9,15 @@ use petgraph::Direction::{
 use petgraph::visit::EdgeRef;
 use crate::re::RegExp;
 
-/// Generalized NFA over alphabet set `Alphabet`
+/// Generalized NFA where the transitions are `RegExp<Alphabet, Name>`
 #[derive(Debug)]
-pub struct GNFA<Alphabet> {
+pub struct GNFA<Alphabet, Name> {
     start_state: NodeIndex,
     accepting_state: NodeIndex,
-    the_graph: Graph<(), RegExp<Alphabet>>,
+    the_graph: Graph<(), RegExp<Alphabet, Name>>,
 }
 
-impl<Alphabet: Eq + Clone> GNFA<Alphabet> {
+impl<Alphabet: Eq + Clone, Name: Eq + Clone + Hash> GNFA<Alphabet, Name> {
     /// Construct a `GNFA` corresponding to cfg `g`.
     /// 
     /// The language accepted is the set of execution paths of `g`.
@@ -56,7 +58,7 @@ impl<Alphabet: Eq + Clone> GNFA<Alphabet> {
     }
 
     // add edge, if the edge already exist, add the weight to it with RegExp:Alter
-    fn add_arrow(&mut self, s: NodeIndex, t: NodeIndex, arrow: RegExp<Alphabet>) {
+    fn add_arrow(&mut self, s: NodeIndex, t: NodeIndex, arrow: RegExp<Alphabet, Name>) {
         match self.the_graph.find_edge(s, t) {
             Some(e) => {
                 self.the_graph[e] = self.the_graph.edge_weight(e).map(
@@ -126,7 +128,7 @@ impl<Alphabet: Eq + Clone> GNFA<Alphabet> {
     }
 
     /// Return a reference to the edge from the start state to the accepting state.
-    pub fn start_to_end(&self) -> &RegExp<Alphabet> {
+    pub fn start_to_end(&self) -> &RegExp<Alphabet, Name> {
         let idx = self.the_graph.find_edge(self.start_state, self.accepting_state).unwrap();
         self.the_graph.edge_weight(idx).unwrap()
     }
@@ -149,7 +151,7 @@ mod tests {
         g.add_edge(v2, v4, ());
         g.add_edge(v3, v1, ());
         g.add_edge(v3, v4, ());
-        let mut gnfa = GNFA::from_cfg(g, v1, v4);
+        let mut gnfa: GNFA<_, ()> = GNFA::from_cfg(g, v1, v4);
         gnfa.reduce();
         print!("{:?}", gnfa.start_to_end());
     }
@@ -165,7 +167,7 @@ mod tests {
         g.add_edge(v2, v3, ());
         g.add_edge(v3, v4, ());
         g.add_edge(v3, v2, ());
-        let mut gnfa = GNFA::from_cfg(g, v1, v4);
+        let mut gnfa: GNFA<_, ()> = GNFA::from_cfg(g, v1, v4);
         gnfa.reduce();
         println!("{:?}", gnfa.start_to_end());
     }
