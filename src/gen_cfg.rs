@@ -1,3 +1,5 @@
+//! AST for the textual cfg, and utilities to convert the ast to a CFG in graph representation.
+
 use std::collections::{btree_map::Entry, BTreeMap};
 use crate::convert::Node as Node;
 
