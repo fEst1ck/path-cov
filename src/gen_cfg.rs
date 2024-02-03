@@ -51,8 +51,7 @@ impl<BlockID: Clone + Ord, FunID: Clone> CFG<BlockID, FunID> {
     }
 }
 
-/// Contains a block id, its successors blocks,
-/// and optionally a function id if the block is a call block
+/// Basic Block
 #[derive(Debug)]
 pub struct BlockEntry<BlockID, FunID> {
     /// ID of the basic block
