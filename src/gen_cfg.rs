@@ -1,13 +1,16 @@
-//! AST for the textual cfg, and utilities to convert the ast to a CFG in graph representation.
+//! AST of the control flow grpah in text format
 
 use std::collections::{btree_map::Entry, BTreeMap};
 use crate::convert::Node as Node;
 
 use petgraph::graph::Graph;
 
+/// Control flow graph of a single function
 #[derive(Debug)]
 pub struct CFG<BlockID, FunID> {
+    /// ID of the function
     pub(crate) id: FunID,
+    /// Basic blocks of the function
     pub(crate) block_entries: Vec<BlockEntry<BlockID, FunID>>,
 }
 
@@ -52,7 +55,10 @@ impl<BlockID: Clone + Ord, FunID: Clone> CFG<BlockID, FunID> {
 /// and optionally a function id if the block is a call block
 #[derive(Debug)]
 pub struct BlockEntry<BlockID, FunID> {
+    /// ID of the basic block
     pub(crate) id: BlockID,
+    /// Contains the function ID if this is a call block
     pub(crate) calls: Option<FunID>,
+    /// Successor blocks
     pub(crate) successors: Vec<BlockID>,
 }
