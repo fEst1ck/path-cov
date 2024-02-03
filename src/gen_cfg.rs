@@ -7,15 +7,18 @@ use petgraph::graph::Graph;
 
 /// Control flow graph of a single function
 #[derive(Debug)]
-pub struct CFG<BlockID, FunID> {
+pub struct CFGEntry<BlockID, FunID> {
     /// ID of the function
     pub(crate) id: FunID,
     /// Basic blocks of the function
     pub(crate) block_entries: Vec<BlockEntry<BlockID, FunID>>,
 }
 
-impl<BlockID: Clone + Ord, FunID: Clone> CFG<BlockID, FunID> {
-	pub fn new(self) -> (FunID, Graph<Node<BlockID, FunID>, ()>) {
+impl<BlockID: Clone + Ord, FunID: Clone> CFGEntry<BlockID, FunID> {
+    /// Returns
+    /// - the function id
+    /// - the graph representation of the CFG entry
+	pub fn to_graph(self) -> (FunID, Graph<Node<BlockID, FunID>, ()>) {
         let mut graph = Graph::new();
         let mut map = BTreeMap::new();
 		// creates a new node for each block entry, and maps block id to node idx
