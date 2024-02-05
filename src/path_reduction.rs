@@ -4,7 +4,7 @@ use sha2::{digest, Sha256};
 
 use crate::{convert::GNFA, extern_cfg::{BlockID, FunID}, intern_cfg::CFG, re::RegExp};
 
-struct PathReducer<BlockID, FunID> {
+pub struct PathReducer<BlockID, FunID> {
 	res: BTreeMap<FunID, RegExp<BlockID, FunID>>,
 	k: usize
 }

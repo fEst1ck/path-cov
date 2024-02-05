@@ -37,7 +37,7 @@ struct BlockEntry {
 }
 
 #[repr(C)]
-struct TopLevel {
+pub struct TopLevel {
     /// size of `cfg_arr`
     cfg_size: c_int,
     cfg_arr: *const CFGEntry,
@@ -47,7 +47,7 @@ struct TopLevel {
 }
 
 /// Requires: `top_level` is not NULL
-unsafe fn process_top_level(top_level: *const TopLevel) -> BTreeMap<FunID, CFG<BlockID, FunID>> {
+pub unsafe fn process_top_level(top_level: *const TopLevel) -> BTreeMap<FunID, CFG<BlockID, FunID>> {
     let top_level = top_level.as_ref().expect("top level");
 	let cfgs = slice::from_raw_parts(top_level.cfg_arr, top_level.cfg_size as usize);
 	let blocks = slice::from_raw_parts(top_level.block_arr, top_level.block_size as usize);
