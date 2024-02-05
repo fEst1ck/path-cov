@@ -1,3 +1,5 @@
+//! Converts control flow graphs to regular expressions
+
 use std::hash::Hash;
 
 use petgraph::graph::{

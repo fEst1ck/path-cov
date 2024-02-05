@@ -1,3 +1,5 @@
+//! Regular expressions
+
 use std::collections::HashMap;
 use std::hash::Hash;
 

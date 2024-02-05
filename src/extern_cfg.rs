@@ -1,4 +1,5 @@
-/// Structures of external C CFGs, and utilities for converting them to internal CFGs
+//! Structures of external C CFGs, and utilities for converting them to internal CFGs
+
 use std::{
     collections::{BTreeMap, BTreeSet},
     os::raw::{c_char, c_int},
