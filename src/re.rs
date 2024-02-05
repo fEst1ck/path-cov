@@ -1,7 +1,6 @@
 //! Regular expressions
 
-use std::collections::HashMap;
-use std::hash::Hash;
+use std::collections::BTreeMap;
 
 /// Regular expressions over alphabet set `Alphabet`, and variable set `Name`
 /// a variable refers to an external regular expression
@@ -14,7 +13,7 @@ pub enum RegExp<Alphabet, Name> {
     Star(Box<RegExp<Alphabet, Name>>)
 }
 
-impl<Alphabet: Eq + Clone, Name: Eq + Clone + Hash> RegExp<Alphabet, Name> {
+impl<Alphabet: Eq + Clone, Name: Eq + Clone + Ord> RegExp<Alphabet, Name> {
     pub fn var(x: Name) -> Self {
         Self::Var(x)
     }
@@ -35,7 +34,7 @@ impl<Alphabet: Eq + Clone, Name: Eq + Clone + Hash> RegExp<Alphabet, Name> {
         Self::Star(Box::new(r))
     }
 
-    pub fn parse_inf<'a>(&self, s: &'a [Alphabet], env: &HashMap<Name, RegExp<Alphabet, Name>>) -> Option<(Val<Alphabet>, &'a [Alphabet])> {
+    pub fn parse_inf<'a>(&self, s: &'a [Alphabet], env: &BTreeMap<Name, RegExp<Alphabet, Name>>) -> Option<(Val<Alphabet>, &'a [Alphabet])> {
         match self {
             RegExp::Var(x) => {
                 let re = env.get(x).expect("name doesn't exist in env");
@@ -70,7 +69,7 @@ impl<Alphabet: Eq + Clone, Name: Eq + Clone + Hash> RegExp<Alphabet, Name> {
         }
     }
 
-    pub fn parse_k<'a>(&self, s: &'a [Alphabet], env: &HashMap<Name, RegExp<Alphabet, Name>>, k: usize) -> Option<(Val<Alphabet>, &'a [Alphabet])> {
+    pub fn parse_k<'a>(&self, s: &'a [Alphabet], env: &BTreeMap<Name, RegExp<Alphabet, Name>>, k: usize) -> Option<(Val<Alphabet>, &'a [Alphabet])> {
         match self {
             RegExp::Var(x) => {
                 let re = env.get(x).expect("name doesn't exist in env");
@@ -105,7 +104,7 @@ impl<Alphabet: Eq + Clone, Name: Eq + Clone + Hash> RegExp<Alphabet, Name> {
         }
     }
 
-    fn parse_star_inf<'a>(&self, mut s: &'a [Alphabet], env: &HashMap<Name, Self>) -> (Vec<Val<Alphabet>>, &'a [Alphabet]) {
+    fn parse_star_inf<'a>(&self, mut s: &'a [Alphabet], env: &BTreeMap<Name, Self>) -> (Vec<Val<Alphabet>>, &'a [Alphabet]) {
         let mut acc = Vec::new();
         while let Some((val, new_s)) = self.parse_inf(s, env) {
             s = new_s;
@@ -114,7 +113,7 @@ impl<Alphabet: Eq + Clone, Name: Eq + Clone + Hash> RegExp<Alphabet, Name> {
         (acc, s)
     }
 
-    fn parse_star_k<'a>(&self, mut s: &'a [Alphabet], env: &HashMap<Name, Self>, k: usize) -> (Vec<Val<Alphabet>>, &'a [Alphabet]) {
+    fn parse_star_k<'a>(&self, mut s: &'a [Alphabet], env: &BTreeMap<Name, Self>, k: usize) -> (Vec<Val<Alphabet>>, &'a [Alphabet]) {
         let mut acc = Vec::new();
         while let Some((val, new_s)) = self.parse_k(s, env, k) {
             s = new_s;
@@ -200,7 +199,7 @@ mod tests {
             )
         );
         let s = vec![1, 2, 1, 2, 1, 2, 1, 3];
-        let (v, _) = re.parse_inf(&s, &HashMap::new()).unwrap();
+        let (v, _) = re.parse_inf(&s, &BTreeMap::new()).unwrap();
         let k = 2;
         let reduced = v.reduce(k);
         assert!(reduced == vec![1, 2, 1, 2, 1, 3]);
@@ -220,7 +219,7 @@ mod tests {
         );
         let s = vec![1, 2, 1, 2, 1, 2, 1, 3];
         let k = 2;
-        let (v, _) = re.parse_k(&s, &HashMap::new(), k).unwrap();
+        let (v, _) = re.parse_k(&s, &BTreeMap::new(), k).unwrap();
         let reduced = v.into_vec();
         assert!(reduced == vec![1, 2, 1, 2, 1, 3]);
     }
@@ -230,7 +229,7 @@ mod tests {
         // (12)*(13)
         let re: RegExp<_, ()> = RegExp::concat(RegExp::star(RegExp::concat(RegExp::literal(1), RegExp::literal(2))), RegExp::concat(RegExp::literal(1), RegExp::literal(3)));
         let s = vec![1, 2, 1, 2, 1, 2, 1, 3];
-        let (v, _) = re.parse_inf(&s, &HashMap::new()).unwrap();
+        let (v, _) = re.parse_inf(&s, &BTreeMap::new()).unwrap();
         let k = 2;
         let reduced = v.reduce(k);
         assert!(reduced == vec![1, 2, 1, 2, 1, 3]);
@@ -242,7 +241,7 @@ mod tests {
         let re: RegExp<_, ()> = RegExp::concat(RegExp::star(RegExp::concat(RegExp::literal(1), RegExp::literal(2))), RegExp::concat(RegExp::literal(1), RegExp::literal(3)));
         let s = vec![1, 2, 1, 2, 1, 2, 1, 3];
         let k = 2;
-        let (v, _) = re.parse_k(&s, &HashMap::new(), k).unwrap();
+        let (v, _) = re.parse_k(&s, &BTreeMap::new(), k).unwrap();
         let reduced = v.into_vec();
         assert!(reduced == vec![1, 2, 1, 2, 1, 3]);
     }
