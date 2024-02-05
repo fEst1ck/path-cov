@@ -7,6 +7,8 @@ use petgraph::Direction::{
     Outgoing, Incoming
 };
 use petgraph::visit::EdgeRef;
+use crate::extern_cfg::{BlockID, FunID};
+use crate::intern_cfg::CFG;
 use crate::re::RegExp;
 
 /// Generalized NFA where the transitions are `RegExp<Alphabet, Name>`
@@ -50,29 +52,6 @@ impl<Alphabet: Eq + Clone, Name: Eq + Clone + Hash> GNFA<Alphabet, Name> {
         );
         let start_state = the_graph.add_node(());
         the_graph.add_edge(start_state, entry, RegExp::Literal(g.node_weight(entry).unwrap().clone()));
-        Self {
-            start_state,
-            accepting_state: exit,
-            the_graph,
-        }
-    }
-
-    /// Construct a `GNFA` corresponding to cfg `g`.
-    /// 
-    /// The language accepted is the set of execution paths of `g`.
-    pub fn from_cfg1<E>(g: Graph<Node<Alphabet, Name>, E>, entry: NodeIndex, exit: NodeIndex) -> Self {
-        let mut the_graph = g.map(
-            |_node_id, _weight| {
-                ()
-            },
-            |edge_id, _weight| {
-                let dst_node_id = g.edge_endpoints(edge_id).unwrap().1;
-                let dst_node_weight = g.node_weight(dst_node_id).unwrap();
-                dst_node_weight.clone().to_re()
-            }
-        );
-        let start_state = the_graph.add_node(());
-        the_graph.add_edge(start_state, entry, g.node_weight(entry).unwrap().clone().to_re());
         Self {
             start_state,
             accepting_state: exit,
@@ -170,6 +149,32 @@ impl<Alphabet: Eq + Clone, Name: Eq + Clone + Hash> GNFA<Alphabet, Name> {
     pub fn start_to_end(&self) -> &RegExp<Alphabet, Name> {
         let idx = self.the_graph.find_edge(self.start_state, self.accepting_state).unwrap();
         self.the_graph.edge_weight(idx).unwrap()
+    }
+}
+
+impl GNFA<BlockID, FunID> {
+    /// Construct a `GNFA` corresponding to cfg `g`.
+    /// 
+    /// The language accepted is the set of execution paths of `g`.
+    pub fn from_intern_cfg(graph: CFG<BlockID, FunID>) -> Self {
+        let CFG { entry, exit, graph } = graph;
+        let mut the_graph = graph.map(
+            |_node_id, _weight| {
+                ()
+            },
+            |edge_id, _weight| {
+                let dst_node_id = graph.edge_endpoints(edge_id).unwrap().1;
+                let dst_node_weight = graph.node_weight(dst_node_id).unwrap();
+                dst_node_weight.clone().to_re()
+            }
+        );
+        let start_state = the_graph.add_node(());
+        the_graph.add_edge(start_state, entry, graph.node_weight(entry).unwrap().clone().to_re());
+        Self {
+            start_state,
+            accepting_state: exit,
+            the_graph,
+        }
     }
 }
 

@@ -8,8 +8,8 @@ use std::{
 use crate::{convert::Node, intern_cfg::CFG};
 use petgraph::graph::Graph;
 
-type FunID = c_int;
-type BlockID = c_int;
+pub type FunID = c_int;
+pub type BlockID = c_int;
 
 const FUN_NAME_LEN: usize = 256;
 
