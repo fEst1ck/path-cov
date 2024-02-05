@@ -1,5 +1,5 @@
 pub mod convert;
 pub mod re;
 pub mod hash;
-pub mod gen_cfg;
-pub mod file_format;
+pub mod intern_cfg;
+pub mod extern_cfg;
