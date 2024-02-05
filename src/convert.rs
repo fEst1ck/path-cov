@@ -147,7 +147,7 @@ impl<Alphabet: Eq + Clone, Name: Eq + Clone + Hash> GNFA<Alphabet, Name> {
         }
     }
 
-    /// Return a reference to the edge from the start state to the accepting state.
+    /// Return a reference to an edge from the start state to the accepting state.
     pub fn start_to_end(&self) -> &RegExp<Alphabet, Name> {
         let idx = self.the_graph.find_edge(self.start_state, self.accepting_state).unwrap();
         self.the_graph.edge_weight(idx).unwrap()
