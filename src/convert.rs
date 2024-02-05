@@ -37,7 +37,7 @@ impl<Alphabet, Name> Node<Alphabet, Name> {
     }
 }
 
-impl<Alphabet: Eq + Clone, Name: Eq + Clone + Hash> GNFA<Alphabet, Name> {
+impl<Alphabet: Eq + Clone, Name: Eq + Clone + Ord> GNFA<Alphabet, Name> {
     /// Construct a `GNFA` corresponding to cfg `g`.
     /// 
     /// The language accepted is the set of execution paths of `g`.
