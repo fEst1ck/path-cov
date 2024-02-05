@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 
 /// Regular expressions over alphabet set `Alphabet`, and variable set `Name`
 /// a variable refers to an external regular expression
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum RegExp<Alphabet, Name> {
     Var(Name),
     Literal(Alphabet),
