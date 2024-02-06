@@ -11,6 +11,13 @@ pub unsafe extern "C" fn get_path_reducer(top_level: *const TopLevel, k: c_int) 
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn free_path_reducer(ptr: *mut PathReducer<BlockID, FunID>) {
+   if !ptr.is_null() {
+     let _ = Box::from_raw(ptr);
+   }
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn reduce_path(reducer: *const PathReducer<BlockID, BlockID>, path: *const BlockID, path_size: c_int, entry_fun_id: FunID) -> *const c_char {
    let reducer = reducer.as_ref().expect("bad pointer");
    let path = slice::from_raw_parts(path, path_size as usize);
