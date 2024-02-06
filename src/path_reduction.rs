@@ -1,7 +1,5 @@
 use std::collections::BTreeMap;
 
-use sha2::{digest, Sha256};
-
 use crate::{convert::GNFA, extern_cfg::{BlockID, FunID}, intern_cfg::CFG, re::RegExp};
 
 pub struct PathReducer<BlockID, FunID> {

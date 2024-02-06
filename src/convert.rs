@@ -1,7 +1,5 @@
 //! Converts control flow graphs to regular expressions
 
-use std::hash::Hash;
-
 use petgraph::graph::{
     Graph, NodeIndex,
 };
@@ -41,6 +39,7 @@ impl<Alphabet: Eq + Clone, Name: Eq + Clone + Ord> GNFA<Alphabet, Name> {
     /// Construct a `GNFA` corresponding to cfg `g`.
     /// 
     /// The language accepted is the set of execution paths of `g`.
+    #[allow(dead_code)]
     pub fn from_cfg<E>(g: Graph<Alphabet, E>, entry: NodeIndex, exit: NodeIndex) -> Self {
         let mut the_graph = g.map(
             |_node_id, _weight| {

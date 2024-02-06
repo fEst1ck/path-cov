@@ -1,4 +1,4 @@
-use sha2::{Sha256, Digest, digest};
+use sha2::{Sha256, Digest};
 
 use crate::extern_cfg::BlockID;
 

@@ -14,18 +14,22 @@ pub enum RegExp<Alphabet, Name> {
 }
 
 impl<Alphabet: Eq + Clone, Name: Eq + Clone + Ord> RegExp<Alphabet, Name> {
+    #[allow(dead_code)]
     pub fn var(x: Name) -> Self {
         Self::Var(x)
     }
 
+    #[allow(dead_code)]
     pub fn literal(c: Alphabet) -> Self {
         Self::Literal(c)
     }
 
+    #[allow(dead_code)]
     pub fn concat(r1: RegExp<Alphabet, Name>, r2: RegExp<Alphabet, Name>) -> Self {
         Self::Concat(Box::new(r1), Box::new(r2))
     }
 
+    #[allow(dead_code)]
     pub fn alter(r1: Self, r2: Self) -> Self {
         Self::Alter(Box::new(r1), Box::new(r2))
     }
@@ -34,6 +38,7 @@ impl<Alphabet: Eq + Clone, Name: Eq + Clone + Ord> RegExp<Alphabet, Name> {
         Self::Star(Box::new(r))
     }
 
+    #[allow(dead_code)]
     pub fn parse_inf<'a>(&self, s: &'a [Alphabet], env: &BTreeMap<Name, RegExp<Alphabet, Name>>) -> Option<(Val<Alphabet>, &'a [Alphabet])> {
         match self {
             RegExp::Var(x) => {
@@ -104,6 +109,7 @@ impl<Alphabet: Eq + Clone, Name: Eq + Clone + Ord> RegExp<Alphabet, Name> {
         }
     }
 
+    #[allow(dead_code)]
     fn parse_star_inf<'a>(&self, mut s: &'a [Alphabet], env: &BTreeMap<Name, Self>) -> (Vec<Val<Alphabet>>, &'a [Alphabet]) {
         let mut acc = Vec::new();
         while let Some((val, new_s)) = self.parse_inf(s, env) {
@@ -136,6 +142,7 @@ pub enum Val<Alphabet> {
 }
 
 impl<Alphabet> Val<Alphabet> {
+    #[allow(dead_code)]
     pub fn reduce(self, k: usize) -> Vec<Alphabet> {
         assert!(k != 0);
         match self {
