@@ -9,3 +9,7 @@ edition = "2021"
 petgraph = "0.6.4"
 sha2 = "0.10.7"
 hex = "0.4.3"
+
+[lib]
+name = "path_reduction"
+crate-type = ["cdylib"]
