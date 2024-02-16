@@ -90,10 +90,8 @@ fn get_cfg_with_root(entry: BlockID, exit: BlockID, blocks: &[BlockEntry]) -> CF
             Node::Var(block_entry.calls)
         };
         let node_idx = graph.add_node(node_weight);
-        debug_assert!(
-            block_id_to_node_idx.insert(block_id, node_idx).is_none(),
-            "duplicate block id"
-        );
+        let no_dup = block_id_to_node_idx.insert(block_id, node_idx).is_none();
+        debug_assert!(no_dup, "duplicate block id{}", block_id);
     }
     // add edges to the graph
     for block_id in DFS::new(blocks, entry as BlockID) {
