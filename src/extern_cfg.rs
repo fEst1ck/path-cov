@@ -81,7 +81,12 @@ fn get_cfg_with_root(entry: BlockID, exit: BlockID, blocks: &[BlockEntry]) -> CF
         let node_weight = if block_entry.calls == -1 {
             Node::Literal(block_id)
         } else {
-            debug_assert!(block_entry.calls >= 0, "invalid block id");
+            debug_assert!(
+                block_entry.successor_size >= 0,
+                "call block {} has {} successors",
+                block_id,
+                block_entry.successor_size
+            );
             Node::Var(block_entry.calls)
         };
         let node_idx = graph.add_node(node_weight);
