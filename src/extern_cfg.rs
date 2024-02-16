@@ -47,26 +47,26 @@ pub struct TopLevel {
 }
 
 /// Requires: `top_level` is not NULL
-pub unsafe fn process_top_level(top_level: *const TopLevel) -> BTreeMap<FunID, CFG<BlockID, FunID>> {
+pub unsafe fn process_top_level(
+    top_level: *const TopLevel,
+) -> BTreeMap<FunID, CFG<BlockID, FunID>> {
     let top_level = top_level.as_ref().expect("top level");
-	let cfgs = slice::from_raw_parts(top_level.cfg_arr, top_level.cfg_size as usize);
-	let blocks = slice::from_raw_parts(top_level.block_arr, top_level.block_size as usize);
-	process_cfgs(cfgs, blocks)
+    let cfgs = slice::from_raw_parts(top_level.cfg_arr, top_level.cfg_size as usize);
+    let blocks = slice::from_raw_parts(top_level.block_arr, top_level.block_size as usize);
+    process_cfgs(cfgs, blocks)
 }
 
 fn process_cfgs(cfgs: &[CFGEntry], blocks: &[BlockEntry]) -> BTreeMap<FunID, CFG<BlockID, FunID>> {
-	cfgs.iter()
-		.enumerate()
-		.map(|(fun_id, cfg_entry)| {
-			(fun_id as FunID, process_cfg(cfg_entry, blocks))
-		})
-		.collect()
+    cfgs.iter()
+        .enumerate()
+        .map(|(fun_id, cfg_entry)| (fun_id as FunID, process_cfg(cfg_entry, blocks)))
+        .collect()
 }
 
 /// Returns the control flow graph of the given CFGEntry
 fn process_cfg(cfg: &CFGEntry, blocks: &[BlockEntry]) -> CFG<BlockID, FunID> {
     let entry_block_id = cfg.entry;
-	let exit_block_id = cfg.exit;
+    let exit_block_id = cfg.exit;
     get_cfg_with_root(entry_block_id, exit_block_id, blocks)
 }
 
@@ -106,7 +106,7 @@ fn get_cfg_with_root(entry: BlockID, exit: BlockID, blocks: &[BlockEntry]) -> CF
     CFG {
         entry: *block_id_to_node_idx.get(&entry).expect("entry block idx"),
         exit: *block_id_to_node_idx.get(&exit).expect("entry block idx"),
-		graph
+        graph,
     }
 }
 
@@ -114,7 +114,12 @@ fn get_cfg_with_root(entry: BlockID, exit: BlockID, blocks: &[BlockEntry]) -> CF
 /// returns the id of the successor blocks of the given block
 fn get_successors(blocks: &[BlockEntry], block_id: BlockID) -> &[BlockID] {
     let block_entry = blocks.get(block_id as usize).expect("invalid block id");
-    unsafe { slice::from_raw_parts(block_entry.successors_arr, block_entry.successor_size as usize) }
+    unsafe {
+        slice::from_raw_parts(
+            block_entry.successors_arr,
+            block_entry.successor_size as usize,
+        )
+    }
 }
 
 /// State for DFS traversal of the CFG
