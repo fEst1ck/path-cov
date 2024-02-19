@@ -10,7 +10,7 @@ pub enum RegExp<Alphabet, Name> {
     Literal(Alphabet),
     Concat(Box<RegExp<Alphabet, Name>>, Box<RegExp<Alphabet, Name>>),
     Alter(Box<RegExp<Alphabet, Name>>, Box<RegExp<Alphabet, Name>>),
-    Star(Box<RegExp<Alphabet, Name>>)
+    Star(Box<RegExp<Alphabet, Name>>),
 }
 
 impl<Alphabet: Eq + Clone, Name: Eq + Clone + Ord> RegExp<Alphabet, Name> {
@@ -39,7 +39,11 @@ impl<Alphabet: Eq + Clone, Name: Eq + Clone + Ord> RegExp<Alphabet, Name> {
     }
 
     #[allow(dead_code)]
-    pub fn parse_inf<'a>(&self, s: &'a [Alphabet], env: &BTreeMap<Name, RegExp<Alphabet, Name>>) -> Option<(Val<Alphabet>, &'a [Alphabet])> {
+    pub fn parse_inf<'a>(
+        &self,
+        s: &'a [Alphabet],
+        env: &BTreeMap<Name, RegExp<Alphabet, Name>>,
+    ) -> Option<(Val<Alphabet>, &'a [Alphabet])> {
         match self {
             RegExp::Var(x) => {
                 let re = env.get(x).expect("name doesn't exist in env");
@@ -61,12 +65,10 @@ impl<Alphabet: Eq + Clone, Name: Eq + Clone + Ord> RegExp<Alphabet, Name> {
                 let (v2, s2) = r2.parse_inf(s1, env)?;
                 Some((Val::Concat(Box::new(v1), Box::new(v2)), s2))
             }
-            RegExp::Alter(r1, r2 ) => {
-                match r1.parse_inf(s, env) {
-                    Some(res) => Some(res),
-                    None => r2.parse_inf(s, env),
-                }
-            }
+            RegExp::Alter(r1, r2) => match r1.parse_inf(s, env) {
+                Some(res) => Some(res),
+                None => r2.parse_inf(s, env),
+            },
             RegExp::Star(r) => {
                 let (vs, s1) = r.parse_star_inf(s, env);
                 Some((Val::Star(vs), s1))
@@ -74,7 +76,12 @@ impl<Alphabet: Eq + Clone, Name: Eq + Clone + Ord> RegExp<Alphabet, Name> {
         }
     }
 
-    pub fn parse_k<'a>(&self, s: &'a [Alphabet], env: &BTreeMap<Name, RegExp<Alphabet, Name>>, k: usize) -> Option<(Val<Alphabet>, &'a [Alphabet])> {
+    pub fn parse_k<'a>(
+        &self,
+        s: &'a [Alphabet],
+        env: &BTreeMap<Name, RegExp<Alphabet, Name>>,
+        k: usize,
+    ) -> Option<(Val<Alphabet>, &'a [Alphabet])> {
         match self {
             RegExp::Var(x) => {
                 let re = env.get(x).expect("name doesn't exist in env");
@@ -96,12 +103,10 @@ impl<Alphabet: Eq + Clone, Name: Eq + Clone + Ord> RegExp<Alphabet, Name> {
                 let (v2, s2) = r2.parse_k(s1, env, k)?;
                 Some((Val::Concat(Box::new(v1), Box::new(v2)), s2))
             }
-            RegExp::Alter(r1, r2 ) => {
-                match r1.parse_k(s, env, k) {
-                    Some(res) => Some(res),
-                    None => r2.parse_k(s, env, k),
-                }
-            }
+            RegExp::Alter(r1, r2) => match r1.parse_k(s, env, k) {
+                Some(res) => Some(res),
+                None => r2.parse_k(s, env, k),
+            },
             RegExp::Star(r) => {
                 let (vs, s1) = r.parse_star_k(s, env, k);
                 Some((Val::Star(vs), s1))
@@ -110,7 +115,11 @@ impl<Alphabet: Eq + Clone, Name: Eq + Clone + Ord> RegExp<Alphabet, Name> {
     }
 
     #[allow(dead_code)]
-    fn parse_star_inf<'a>(&self, mut s: &'a [Alphabet], env: &BTreeMap<Name, Self>) -> (Vec<Val<Alphabet>>, &'a [Alphabet]) {
+    fn parse_star_inf<'a>(
+        &self,
+        mut s: &'a [Alphabet],
+        env: &BTreeMap<Name, Self>,
+    ) -> (Vec<Val<Alphabet>>, &'a [Alphabet]) {
         let mut acc = Vec::new();
         while let Some((val, new_s)) = self.parse_inf(s, env) {
             s = new_s;
@@ -119,7 +128,12 @@ impl<Alphabet: Eq + Clone, Name: Eq + Clone + Ord> RegExp<Alphabet, Name> {
         (acc, s)
     }
 
-    fn parse_star_k<'a>(&self, mut s: &'a [Alphabet], env: &BTreeMap<Name, Self>, k: usize) -> (Vec<Val<Alphabet>>, &'a [Alphabet]) {
+    fn parse_star_k<'a>(
+        &self,
+        mut s: &'a [Alphabet],
+        env: &BTreeMap<Name, Self>,
+        k: usize,
+    ) -> (Vec<Val<Alphabet>>, &'a [Alphabet]) {
         let mut acc = Vec::new();
         while let Some((val, new_s)) = self.parse_k(s, env, k) {
             s = new_s;
@@ -138,7 +152,7 @@ impl<Alphabet: Eq + Clone, Name: Eq + Clone + Ord> RegExp<Alphabet, Name> {
 pub enum Val<Alphabet> {
     Literal(Alphabet),
     Concat(Box<Val<Alphabet>>, Box<Val<Alphabet>>),
-    Star(Vec<Val<Alphabet>>)
+    Star(Vec<Val<Alphabet>>),
 }
 
 impl<Alphabet> Val<Alphabet> {
@@ -152,7 +166,7 @@ impl<Alphabet> Val<Alphabet> {
                 let mut r2 = v2.reduce(k);
                 r1.append(&mut r2);
                 r1
-            },
+            }
             Val::Star(vs) => {
                 let mut res = Vec::new();
                 let mut counter = 0;
@@ -165,7 +179,7 @@ impl<Alphabet> Val<Alphabet> {
                     counter += 1;
                 }
                 res
-            },
+            }
         }
     }
 
@@ -197,13 +211,15 @@ mod tests {
     fn test1() {
         use RegExp::*;
         // 1(21)*3
-        let re : RegExp<_, ()> = Concat(
+        let re: RegExp<_, ()> = Concat(
             Box::new(Literal(1)),
             Box::new(Concat(
-                Box::new(Star(
-                    Box::new(Concat(Box::new(Literal(2)), Box::new(Literal(1)))))),
-                Box::new(Literal(3)))
-            )
+                Box::new(Star(Box::new(Concat(
+                    Box::new(Literal(2)),
+                    Box::new(Literal(1)),
+                )))),
+                Box::new(Literal(3)),
+            )),
         );
         let s = vec![1, 2, 1, 2, 1, 2, 1, 3];
         let (v, _) = re.parse_inf(&s, &BTreeMap::new()).unwrap();
@@ -216,13 +232,15 @@ mod tests {
     fn test1_() {
         use RegExp::*;
         // 1(21)*3
-        let re : RegExp<_, ()> = Concat(
+        let re: RegExp<_, ()> = Concat(
             Box::new(Literal(1)),
             Box::new(Concat(
-                Box::new(Star(
-                    Box::new(Concat(Box::new(Literal(2)), Box::new(Literal(1)))))),
-                Box::new(Literal(3)))
-            )
+                Box::new(Star(Box::new(Concat(
+                    Box::new(Literal(2)),
+                    Box::new(Literal(1)),
+                )))),
+                Box::new(Literal(3)),
+            )),
         );
         let s = vec![1, 2, 1, 2, 1, 2, 1, 3];
         let k = 2;
@@ -234,7 +252,10 @@ mod tests {
     #[test]
     fn test2() {
         // (12)*(13)
-        let re: RegExp<_, ()> = RegExp::concat(RegExp::star(RegExp::concat(RegExp::literal(1), RegExp::literal(2))), RegExp::concat(RegExp::literal(1), RegExp::literal(3)));
+        let re: RegExp<_, ()> = RegExp::concat(
+            RegExp::star(RegExp::concat(RegExp::literal(1), RegExp::literal(2))),
+            RegExp::concat(RegExp::literal(1), RegExp::literal(3)),
+        );
         let s = vec![1, 2, 1, 2, 1, 2, 1, 3];
         let (v, _) = re.parse_inf(&s, &BTreeMap::new()).unwrap();
         let k = 2;
@@ -245,7 +266,10 @@ mod tests {
     #[test]
     fn test2_() {
         // (12)*(13)
-        let re: RegExp<_, ()> = RegExp::concat(RegExp::star(RegExp::concat(RegExp::literal(1), RegExp::literal(2))), RegExp::concat(RegExp::literal(1), RegExp::literal(3)));
+        let re: RegExp<_, ()> = RegExp::concat(
+            RegExp::star(RegExp::concat(RegExp::literal(1), RegExp::literal(2))),
+            RegExp::concat(RegExp::literal(1), RegExp::literal(3)),
+        );
         let s = vec![1, 2, 1, 2, 1, 2, 1, 3];
         let k = 2;
         let (v, _) = re.parse_k(&s, &BTreeMap::new(), k).unwrap();

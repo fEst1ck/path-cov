@@ -1,10 +1,17 @@
 use core::slice;
 use std::ffi::{c_char, c_int, CString};
 
-use crate::{extern_cfg::{process_top_level, BlockID, FunID, TopLevel}, hash::hash_path, path_reduction::PathReducer};
+use crate::{
+   extern_cfg::{process_top_level, BlockID, FunID, TopLevel},
+   hash::hash_path,
+   path_reduction::PathReducer,
+};
 
 #[no_mangle]
-pub unsafe extern "C" fn get_path_reducer(top_level: *const TopLevel, k: c_int) -> *const PathReducer<BlockID, BlockID> {
+pub unsafe extern "C" fn get_path_reducer(
+   top_level: *const TopLevel,
+   k: c_int,
+) -> *const PathReducer<BlockID, BlockID> {
    let cfgs = process_top_level(top_level);
    let reducer = PathReducer::from_cfgs(cfgs, k as usize);
    Box::into_raw(Box::new(reducer)).cast_const()
@@ -12,13 +19,18 @@ pub unsafe extern "C" fn get_path_reducer(top_level: *const TopLevel, k: c_int) 
 
 #[no_mangle]
 pub unsafe extern "C" fn free_path_reducer(ptr: *mut PathReducer<BlockID, FunID>) {
-   if !ptr.is_null() {
-     let _ = Box::from_raw(ptr);
-   }
+    if !ptr.is_null() {
+      let _ = Box::from_raw(ptr);
+    }
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn reduce_path(reducer: *const PathReducer<BlockID, BlockID>, path: *const BlockID, path_size: c_int, entry_fun_id: FunID) -> *const c_char {
+pub unsafe extern "C" fn reduce_path(
+   reducer: *const PathReducer<BlockID, BlockID>,
+   path: *const BlockID,
+   path_size: c_int,
+   entry_fun_id: FunID,
+) -> *const c_char {
    let reducer = reducer.as_ref().expect("bad pointer");
    let path = slice::from_raw_parts(path, path_size as usize);
    let reduced_path = reducer.reduce(path, entry_fun_id);
@@ -28,7 +40,13 @@ pub unsafe extern "C" fn reduce_path(reducer: *const PathReducer<BlockID, BlockI
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn reduce_path1(reducer: *const PathReducer<BlockID, BlockID>, path: *const BlockID, path_size: c_int, entry_fun_id: FunID, out_len: *mut c_int) -> *mut BlockID {
+pub unsafe extern "C" fn reduce_path1(
+   reducer: *const PathReducer<BlockID, BlockID>,
+   path: *const BlockID,
+   path_size: c_int,
+   entry_fun_id: FunID,
+   out_len: *mut c_int,
+) -> *mut BlockID {
    let reducer = reducer.as_ref().expect("bad pointer");
    let path = slice::from_raw_parts(path, path_size as usize);
    let reduced_path = reducer.reduce(path, entry_fun_id);

@@ -1,15 +1,11 @@
 //! Converts control flow graphs to regular expressions
 
-use petgraph::graph::{
-    Graph, NodeIndex,
-};
-use petgraph::Direction::{
-    Outgoing, Incoming
-};
-use petgraph::visit::EdgeRef;
 use crate::extern_cfg::{BlockID, FunID};
 use crate::intern_cfg::CFG;
 use crate::re::RegExp;
+use petgraph::graph::{Graph, NodeIndex};
+use petgraph::visit::EdgeRef;
+use petgraph::Direction::{Incoming, Outgoing};
 
 /// Generalized NFA where the transitions are `RegExp<Alphabet, Name>`
 #[derive(Debug)]
@@ -23,7 +19,7 @@ pub struct GNFA<Alphabet, Name> {
 #[derive(Debug, Clone)]
 pub enum Node<Alphabet, Name> {
     Literal(Alphabet),
-    Var(Name)
+    Var(Name),
 }
 
 impl<Alphabet, Name> Node<Alphabet, Name> {
@@ -37,22 +33,24 @@ impl<Alphabet, Name> Node<Alphabet, Name> {
 
 impl<Alphabet: Eq + Clone, Name: Eq + Clone + Ord> GNFA<Alphabet, Name> {
     /// Construct a `GNFA` corresponding to cfg `g`.
-    /// 
+    ///
     /// The language accepted is the set of execution paths of `g`.
     #[allow(dead_code)]
     pub fn from_cfg<E>(g: Graph<Alphabet, E>, entry: NodeIndex, exit: NodeIndex) -> Self {
         let mut the_graph = g.map(
-            |_node_id, _weight| {
-                ()
-            },
+            |_node_id, _weight| (),
             |edge_id, _weight| {
                 let dst_node_id = g.edge_endpoints(edge_id).unwrap().1;
                 let dst_node_weight = g.node_weight(dst_node_id).unwrap();
                 RegExp::Literal(dst_node_weight.clone())
-            }
+            },
         );
         let start_state = the_graph.add_node(());
-        the_graph.add_edge(start_state, entry, RegExp::Literal(g.node_weight(entry).unwrap().clone()));
+        the_graph.add_edge(
+            start_state,
+            entry,
+            RegExp::Literal(g.node_weight(entry).unwrap().clone()),
+        );
         Self {
             start_state,
             accepting_state: exit,
@@ -70,7 +68,7 @@ impl<Alphabet: Eq + Clone, Name: Eq + Clone + Ord> GNFA<Alphabet, Name> {
     fn next_to_rip(&self) -> NodeIndex {
         for v in self.the_graph.node_indices() {
             if v != self.start_state && v != self.accepting_state {
-                return v
+                return v;
             }
         }
         unreachable!()
@@ -80,12 +78,14 @@ impl<Alphabet: Eq + Clone, Name: Eq + Clone + Ord> GNFA<Alphabet, Name> {
     fn add_arrow(&mut self, s: NodeIndex, t: NodeIndex, arrow: RegExp<Alphabet, Name>) {
         match self.the_graph.find_edge(s, t) {
             Some(e) => {
-                self.the_graph[e] = self.the_graph.edge_weight(e).map(
-                    |old_arrow| {
+                self.the_graph[e] = self
+                    .the_graph
+                    .edge_weight(e)
+                    .map(|old_arrow| {
                         let old_arrow_copy = old_arrow.clone();
                         RegExp::Alter(Box::new(old_arrow_copy), Box::new(arrow))
-                    }
-                ).unwrap();
+                    })
+                    .unwrap();
             }
             None => {
                 self.the_graph.add_edge(s, t, arrow);
@@ -98,12 +98,20 @@ impl<Alphabet: Eq + Clone, Name: Eq + Clone + Ord> GNFA<Alphabet, Name> {
     fn rip_state(&mut self, s_rip: NodeIndex) {
         let e_rip = self.the_graph.find_edge(s_rip, s_rip);
         let e_rip_weight = e_rip.map(|e| self.the_graph.edge_weight(e).unwrap().clone());
-        let in_edges = self.the_graph.edges_directed(s_rip, Incoming).map(|x| x.id()).collect::<Vec<_>>();
-        let out_edges = self.the_graph.edges_directed(s_rip, Outgoing).map(|x| x.id()).collect::<Vec<_>>();
+        let in_edges = self
+            .the_graph
+            .edges_directed(s_rip, Incoming)
+            .map(|x| x.id())
+            .collect::<Vec<_>>();
+        let out_edges = self
+            .the_graph
+            .edges_directed(s_rip, Outgoing)
+            .map(|x| x.id())
+            .collect::<Vec<_>>();
         // add new arrows
         for &in_edge in &in_edges {
             for &out_edge in &out_edges {
-                let s_in  = self.the_graph.edge_endpoints(in_edge).unwrap().0;
+                let s_in = self.the_graph.edge_endpoints(in_edge).unwrap().0;
                 let s_out = self.the_graph.edge_endpoints(out_edge).unwrap().1;
                 if s_in == s_rip || s_out == s_rip {
                     continue;
@@ -117,10 +125,10 @@ impl<Alphabet: Eq + Clone, Name: Eq + Clone + Ord> GNFA<Alphabet, Name> {
                             e_in,
                             RegExp::concat(
                                 RegExp::star(e_rip_weight.as_ref().unwrap().clone()),
-                                e_out   
-                            )
+                                e_out,
+                            ),
                         )
-                    },
+                    }
                     None => RegExp::concat(e_in, e_out),
                 };
                 self.add_arrow(s_in, s_out, e_new);
@@ -135,42 +143,46 @@ impl<Alphabet: Eq + Clone, Name: Eq + Clone + Ord> GNFA<Alphabet, Name> {
         if self.accepting_state.index() == self.the_graph.node_count() {
             self.accepting_state = s_rip;
         }
-
     }
 
     /// Reduce `self` so that it ends with only 2 states.
     /// The language accepted doesn't change.
     pub fn reduce(&mut self) {
         while self.num_states() > 2 {
-           self.rip_state(self.next_to_rip());
+            self.rip_state(self.next_to_rip());
         }
     }
 
     /// Return a reference to an edge from the start state to the accepting state.
     pub fn start_to_end(&self) -> &RegExp<Alphabet, Name> {
-        let idx = self.the_graph.find_edge(self.start_state, self.accepting_state).unwrap();
+        let idx = self
+            .the_graph
+            .find_edge(self.start_state, self.accepting_state)
+            .unwrap();
         self.the_graph.edge_weight(idx).unwrap()
     }
 }
 
 impl GNFA<BlockID, FunID> {
     /// Construct a `GNFA` corresponding to cfg `g`.
-    /// 
+    ///
     /// The language accepted is the set of execution paths of `g`.
     pub fn from_intern_cfg(graph: CFG<BlockID, FunID>) -> Self {
         let CFG { entry, exit, graph } = graph;
         let mut the_graph = graph.map(
-            |_node_id, _weight| {
-                ()
-            },
+            |_node_id, _weight| (),
             |edge_id, _weight| {
                 let dst_node_id = graph.edge_endpoints(edge_id).unwrap().1;
                 let dst_node_weight = graph.node_weight(dst_node_id).unwrap();
                 dst_node_weight.clone().to_re()
-            }
+            },
         );
         let start_state = the_graph.add_node(());
-        the_graph.add_edge(start_state, entry, graph.node_weight(entry).unwrap().clone().to_re());
+        the_graph.add_edge(
+            start_state,
+            entry,
+            graph.node_weight(entry).unwrap().clone().to_re(),
+        );
         Self {
             start_state,
             accepting_state: exit,
