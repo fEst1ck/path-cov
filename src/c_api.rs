@@ -28,10 +28,10 @@ pub unsafe extern "C" fn reduce_path(reducer: *const PathReducer<BlockID, BlockI
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn reduce_path1(reducer: *const PathReducer<BlockID, BlockID>, path: *const BlockID, path_size: c_int, entry_fun_id: FunID, out_len: *mut c_int) -> *const BlockID {
+pub unsafe extern "C" fn reduce_path1(reducer: *const PathReducer<BlockID, BlockID>, path: *const BlockID, path_size: c_int, entry_fun_id: FunID, out_len: *mut c_int) -> *mut BlockID {
    let reducer = reducer.as_ref().expect("bad pointer");
    let path = slice::from_raw_parts(path, path_size as usize);
    let reduced_path = reducer.reduce(path, entry_fun_id);
    *out_len = reduced_path.len() as c_int;
-   reduced_path.as_ptr()
+   Box::into_raw(reduced_path.into_boxed_slice()) as *mut i32
 }
