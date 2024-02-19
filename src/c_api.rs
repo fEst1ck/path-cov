@@ -5,11 +5,8 @@ use crate::{extern_cfg::{process_top_level, BlockID, FunID, TopLevel}, hash::has
 
 #[no_mangle]
 pub unsafe extern "C" fn get_path_reducer(top_level: *const TopLevel, k: c_int) -> *const PathReducer<BlockID, BlockID> {
-   println!("processing top level");
    let cfgs = process_top_level(top_level);
-   println!("get path reducer from cfgs");
    let reducer = PathReducer::from_cfgs(cfgs, k as usize);
-   println!("got path reducer");
    Box::into_raw(Box::new(reducer)).cast_const()
 }
 
