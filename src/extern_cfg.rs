@@ -78,8 +78,10 @@ fn get_cfg_with_root(entry: BlockID, exit: BlockID, blocks: &[BlockEntry]) -> CF
     // add node to graph for each block
     for block_id in DFS::new(blocks, entry) {
         let block_entry = blocks.get(block_id as usize).expect("invalid block id");
-        let node_weight = if block_entry.calls < 0 {
+        let node_weight = if block_entry.calls == -1 {
             Node::Literal(block_id)
+        } else if block_entry.calls == -2 {
+            Node::Extern
         } else {
             debug_assert!(
                 block_entry.successor_size >= 0,

@@ -20,6 +20,7 @@ pub struct GNFA<Alphabet, Name> {
 pub enum Node<Alphabet, Name> {
     Literal(Alphabet),
     Var(Name),
+    Extern,
 }
 
 impl<Alphabet, Name> Node<Alphabet, Name> {
@@ -27,6 +28,7 @@ impl<Alphabet, Name> Node<Alphabet, Name> {
         match self {
             Node::Literal(char) => RegExp::Literal(char),
             Node::Var(var) => RegExp::Var(var),
+            Node::Extern => RegExp::Epsilon,
         }
     }
 }

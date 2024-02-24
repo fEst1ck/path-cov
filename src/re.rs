@@ -6,6 +6,7 @@ use std::collections::BTreeMap;
 /// a variable refers to an external regular expression
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum RegExp<Alphabet, Name> {
+    Epsilon,
     Var(Name),
     Literal(Alphabet),
     Concat(Box<RegExp<Alphabet, Name>>, Box<RegExp<Alphabet, Name>>),
@@ -45,6 +46,7 @@ impl<Alphabet: Eq + Clone, Name: Eq + Clone + Ord> RegExp<Alphabet, Name> {
         env: &BTreeMap<Name, RegExp<Alphabet, Name>>,
     ) -> Option<(Val<Alphabet>, &'a [Alphabet])> {
         match self {
+            RegExp::Epsilon => todo!(),
             RegExp::Var(x) => {
                 let re = env.get(x).expect("name doesn't exist in env");
                 re.parse_inf(s, env)
@@ -83,6 +85,7 @@ impl<Alphabet: Eq + Clone, Name: Eq + Clone + Ord> RegExp<Alphabet, Name> {
         k: usize,
     ) -> Option<(Val<Alphabet>, &'a [Alphabet])> {
         match self {
+            RegExp::Epsilon => Some((Val::Star(Vec::new()), s)),
             RegExp::Var(x) => {
                 let re = env.get(x).expect("name doesn't exist in env");
                 re.parse_k(s, env, k)
