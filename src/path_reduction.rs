@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, fmt::{Display, Debug}};
 
 use crate::{
     convert::GNFA,
@@ -12,12 +12,12 @@ pub struct PathReducer<BlockID, FunID> {
     k: usize,
 }
 
-impl<BlockID: Eq + Clone, FunID: Eq + Clone + Ord> PathReducer<BlockID, FunID> {
+impl<BlockID: Eq + Clone + Debug, FunID: Eq + Clone + Ord + Display + Debug> PathReducer<BlockID, FunID> {
     pub fn reduce(&self, path: &[BlockID], cfg: FunID) -> Vec<BlockID> {
         let re = self.res.get(&cfg).expect("invalid fun_id");
         let (reduced_path, res) = re
             .parse_k(path, &self.res, self.k)
-            .expect("ill structured path");
+            .expect(&format!("ill structured path\nregex {:?}\n path {:?}", re, path));
         assert!(res.is_empty());
         reduced_path.into_vec()
     }

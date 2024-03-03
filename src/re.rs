@@ -1,6 +1,6 @@
 //! Regular expressions
 
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, fmt::Display};
 
 /// Regular expressions over alphabet set `Alphabet`, and variable set `Name`
 /// a variable refers to an external regular expression
@@ -14,7 +14,7 @@ pub enum RegExp<Alphabet, Name> {
     Star(Box<RegExp<Alphabet, Name>>),
 }
 
-impl<Alphabet: Eq + Clone, Name: Eq + Clone + Ord> RegExp<Alphabet, Name> {
+impl<Alphabet: Eq + Clone, Name: Eq + Clone + Ord + Display> RegExp<Alphabet, Name> {
     #[allow(dead_code)]
     pub fn var(x: Name) -> Self {
         Self::Var(x)
@@ -48,7 +48,7 @@ impl<Alphabet: Eq + Clone, Name: Eq + Clone + Ord> RegExp<Alphabet, Name> {
         match self {
             RegExp::Epsilon => todo!(),
             RegExp::Var(x) => {
-                let re = env.get(x).expect("name doesn't exist in env");
+                let re = env.get(x).expect("name {x} doesn't exist in env");
                 re.parse_inf(s, env)
             }
             RegExp::Literal(c) => {
@@ -87,7 +87,7 @@ impl<Alphabet: Eq + Clone, Name: Eq + Clone + Ord> RegExp<Alphabet, Name> {
         match self {
             RegExp::Epsilon => Some((Val::Star(Vec::new()), s)),
             RegExp::Var(x) => {
-                let re = env.get(x).expect("name doesn't exist in env");
+                let re = env.get(x).expect(&format!{"name {x} doesn't exist in env"});
                 re.parse_k(s, env, k)
             }
             RegExp::Literal(c) => {

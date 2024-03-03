@@ -1,5 +1,7 @@
 //! Converts control flow graphs to regular expressions
 
+use std::fmt::Display;
+
 use crate::extern_cfg::{BlockID, FunID};
 use crate::intern_cfg::CFG;
 use crate::re::RegExp;
@@ -33,7 +35,7 @@ impl<Alphabet, Name> Node<Alphabet, Name> {
     }
 }
 
-impl<Alphabet: Eq + Clone, Name: Eq + Clone + Ord> GNFA<Alphabet, Name> {
+impl<Alphabet: Eq + Clone, Name: Eq + Clone + Ord + Display> GNFA<Alphabet, Name> {
     /// Construct a `GNFA` corresponding to cfg `g`.
     ///
     /// The language accepted is the set of execution paths of `g`.
