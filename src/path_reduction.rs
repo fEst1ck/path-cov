@@ -1,5 +1,7 @@
 use std::{collections::BTreeMap, fmt::{Display, Debug}};
 
+use rayon::iter::{ParallelBridge, ParallelIterator};
+
 use crate::{
     convert::GNFA,
     extern_cfg::{BlockID, FunID},
@@ -34,6 +36,7 @@ fn convert_cfgs(
     cfgs: BTreeMap<FunID, CFG<BlockID, FunID>>,
 ) -> BTreeMap<FunID, RegExp<BlockID, FunID>> {
     cfgs.into_iter()
+        .par_bridge()
         .map(|(fun_id, cfg)| {
             let mut gnfa = GNFA::from_intern_cfg(cfg);
             gnfa.reduce();
