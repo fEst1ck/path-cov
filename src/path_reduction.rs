@@ -20,7 +20,7 @@ impl<BlockID: Eq + Clone + Debug, FunID: Eq + Clone + Ord + Display + Debug> Pat
         let (reduced_path, res) = re
             .parse_k(path, &self.res, self.k)
             .expect(&format!("ill structured path\nregex {:?}\n path {:?}", re, path));
-        assert!(res.is_empty());
+        assert!(res.is_empty(), "there is a leftover of path {:?}", res);
         reduced_path.into_vec()
     }
 }
