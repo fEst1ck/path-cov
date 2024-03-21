@@ -187,10 +187,24 @@ impl GNFA<BlockID, FunID> {
             entry,
             graph.node_weight(entry).unwrap().clone().to_re(),
         );
-        Self {
-            start_state,
-            accepting_state: exit,
-            the_graph,
+        let exit_nodes: Vec<_> = the_graph.node_indices().filter(|node_idx| the_graph.neighbors(*node_idx).count() == 0).collect();
+        assert!(exit_nodes.len() > 0);
+        if exit_nodes.len() > 1 {
+            let exit_node = the_graph.add_node(());
+            for node in exit_nodes {
+                the_graph.add_edge(node, exit_node, RegExp::Epsilon);
+            }
+            Self {
+                start_state,
+                accepting_state: exit_node,
+                the_graph
+            }
+        } else {
+            Self {
+                start_state,
+                accepting_state: exit,
+                the_graph,
+            }
         }
     }
 }
