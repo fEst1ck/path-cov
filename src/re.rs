@@ -1,6 +1,6 @@
 //! Regular expressions
 
-use std::{collections::BTreeMap, fmt::Display};
+use std::{collections::BTreeMap, fmt::Display, fmt::Debug};
 
 /// Regular expressions over alphabet set `Alphabet`, and variable set `Name`
 /// a variable refers to an external regular expression
@@ -14,7 +14,13 @@ pub enum RegExp<Alphabet, Name> {
     Star(Box<RegExp<Alphabet, Name>>),
 }
 
-impl<Alphabet: Eq + Clone, Name: Eq + Clone + Ord + Display> RegExp<Alphabet, Name> {
+#[derive(Debug)]
+pub enum ParseErr<Alphabet> {
+    Abort(Val<Alphabet>),
+    Invalid,
+}
+
+impl<Alphabet: Eq + Clone + Debug, Name: Eq + Clone + Ord + Debug> RegExp<Alphabet, Name> {
     #[allow(dead_code)]
     pub fn var(x: Name) -> Self {
         Self::Var(x)
@@ -83,36 +89,43 @@ impl<Alphabet: Eq + Clone, Name: Eq + Clone + Ord + Display> RegExp<Alphabet, Na
         s: &'a [Alphabet],
         env: &BTreeMap<Name, RegExp<Alphabet, Name>>,
         k: usize,
-    ) -> Option<(Val<Alphabet>, &'a [Alphabet])> {
+    ) -> Result<(Val<Alphabet>, &'a [Alphabet]), ParseErr<Alphabet>> {
         match self {
-            RegExp::Epsilon => Some((Val::Star(Vec::new()), s)),
+            RegExp::Epsilon => Ok((Val::Star(Vec::new()), s)),
             RegExp::Var(x) => {
-                let re = env.get(x).expect(&format!{"name {x} doesn't exist in env"});
+                let re = env.get(x).expect(&format!{"name {:?} doesn't exist in env",x});
                 re.parse_k(s, env, k)
             }
             RegExp::Literal(c) => {
                 if s.is_empty() {
-                    None
+                    Err(ParseErr::Abort(Val::Star(Vec::new())))
                 } else {
                     if c == &s[0] {
-                        Some((Val::Literal(c.clone()), &s[1..]))
+                        Ok((Val::Literal(c.clone()), &s[1..]))
                     } else {
-                        None
+                        // println!("expected {:?} found {:?}", c, &s[0]);
+                        Err(ParseErr::Invalid)
                     }
                 }
             }
             RegExp::Concat(r1, r2) => {
                 let (v1, s1) = r1.parse_k(s, env, k)?;
-                let (v2, s2) = r2.parse_k(s1, env, k)?;
-                Some((Val::Concat(Box::new(v1), Box::new(v2)), s2))
+                match r2.parse_k(s1, env, k) {
+                    Ok((v2, s2)) => Ok((Val::Concat(Box::new(v1), Box::new(v2)), s2)),
+                    Err(ParseErr::Abort(v2)) => Err(ParseErr::Abort(Val::Concat(Box::new(v1), Box::new(v2)))),
+                    Err(ParseErr::Invalid) => Err(ParseErr::Invalid),
+                }
             }
             RegExp::Alter(r1, r2) => match r1.parse_k(s, env, k) {
-                Some(res) => Some(res),
-                None => r2.parse_k(s, env, k),
+                res @ Ok(..) | res @ Err(ParseErr::Abort(..)) => res,
+                _ => r2.parse_k(s, env, k),
             },
             RegExp::Star(r) => {
-                let (vs, s1) = r.parse_star_k(s, env, k);
-                Some((Val::Star(vs), s1))
+                match r.parse_star_k(s, env, k) {
+                    Ok((vals, s)) => Ok((Val::Star(vals), s)),
+                    Err(ParseErr::Abort(val)) => Err(ParseErr::Abort(val)),
+                    Err(ParseErr::Invalid) => Err(ParseErr::Invalid),
+                }
             }
         }
     }
@@ -136,22 +149,37 @@ impl<Alphabet: Eq + Clone, Name: Eq + Clone + Ord + Display> RegExp<Alphabet, Na
         mut s: &'a [Alphabet],
         env: &BTreeMap<Name, Self>,
         k: usize,
-    ) -> (Vec<Val<Alphabet>>, &'a [Alphabet]) {
+    ) -> Result<(Vec<Val<Alphabet>>, &'a [Alphabet]), ParseErr<Alphabet>> {
         let mut acc = Vec::new();
-        while let Some((val, new_s)) = self.parse_k(s, env, k) {
-            s = new_s;
-            if acc.len() == k {
-                // consumes more `self`, but don't push to `acc`
-                continue;
-            } else {
-                acc.push(val);
+        loop {
+            match self.parse_k(s, env, k) {
+                Ok((val, new_s)) => {
+                    s = new_s;
+                    if acc.len() == k {
+                        // consumes more `self`, but don't push to `acc`
+                        continue;
+                    } else {
+                        acc.push(val);
+                    }
+                }
+                Err(ParseErr::Abort(val)) => {
+                    if acc.len() == k {
+                        // consumes more `self`, but don't push to `acc`
+                        return Err(ParseErr::Abort(Val::Star(acc)));
+                    } else {
+                        acc.push(val);
+                        return Err(ParseErr::Abort(Val::Star(acc)));
+                    }
+                }
+                Err(ParseErr::Invalid) => break,
             }
         }
-        (acc, s)
+        Ok((acc, s))
     }
 }
 
 /// Result of parsing
+#[derive(Debug)]
 pub enum Val<Alphabet> {
     Literal(Alphabet),
     Concat(Box<Val<Alphabet>>, Box<Val<Alphabet>>),
@@ -278,5 +306,17 @@ mod tests {
         let (v, _) = re.parse_k(&s, &BTreeMap::new(), k).unwrap();
         let reduced = v.into_vec();
         assert!(reduced == vec![1, 2, 1, 2, 1, 3]);
+    }
+
+    #[test]
+    fn test3() {
+        use RegExp::*;
+        let re = RegExp::alter(RegExp::concat(RegExp::concat(RegExp::concat(Literal(9), Epsilon), Literal(11)), RegExp::concat(Literal(13), RegExp::concat(Epsilon, RegExp::concat(Literal(15), RegExp::alter(RegExp::concat(Literal(16), Literal(27)), RegExp::concat(Literal(17), RegExp::concat(Literal(18), RegExp::concat(Literal(22), RegExp::concat(Var(0), RegExp::concat(Literal(24), RegExp::concat(Epsilon, RegExp::concat(Literal(26), Literal(27))))))))))))), RegExp::concat(RegExp::concat(RegExp::concat(RegExp::concat(Literal(9), Epsilon), Literal(11)), Literal(12)), Literal(27)));
+        let re0 =  RegExp::alter(RegExp::alter(RegExp::concat(RegExp::concat(RegExp::Literal(0), RegExp::Literal(2)), RegExp::Literal(8)), RegExp::concat(RegExp::concat(RegExp::Literal(0), RegExp::Literal(1)), RegExp::concat(RegExp::Literal(2), RegExp::Literal(8)))), RegExp::concat(RegExp::alter(RegExp::concat(RegExp::concat(RegExp::Literal(0), RegExp::Literal(2)), RegExp::Literal(3)), RegExp::concat(RegExp::concat(RegExp::Literal(0), RegExp::Literal(1)), RegExp::concat(RegExp::Literal(2), RegExp::Literal(3)))), RegExp::concat(RegExp::Literal(7), RegExp::Literal(8))));
+        let path = vec![9, 11, 13, 15, 17, 18, 22, 0, 2, 3, 4];
+        let mut env = BTreeMap::new();
+        env.insert(0, re0);
+        let res = re.parse_k(&path, &env, 3);
+        println!("{:?}", res);
     }
 }

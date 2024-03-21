@@ -5,7 +5,7 @@ use crate::convert::Node;
 use petgraph::graph::{Graph, NodeIndex};
 
 /// Control flow graph of a single function
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CFG<BlockID, FunID> {
     pub entry: NodeIndex,
     pub exit: NodeIndex,

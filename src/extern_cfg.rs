@@ -8,6 +8,8 @@ use std::{
 
 use crate::{convert::Node, intern_cfg::CFG};
 use petgraph::graph::Graph;
+use petgraph::dot::{Dot, Config};
+
 
 pub type FunID = c_int;
 pub type BlockID = c_int;
@@ -15,6 +17,7 @@ pub type BlockID = c_int;
 const FUN_NAME_LEN: usize = 256;
 
 #[repr(C)]
+#[derive(Debug)]
 struct CFGEntry {
     /// Name of the function, has length `FUN_NAME_LEN`
     function_name: [c_char; FUN_NAME_LEN],
@@ -25,6 +28,7 @@ struct CFGEntry {
 }
 
 #[repr(C)]
+#[derive(Debug)]
 struct BlockEntry {
     /// If the block is a call block,
     /// then the field contains the id of the function called,
@@ -65,9 +69,12 @@ fn process_cfgs(cfgs: &[CFGEntry], blocks: &[BlockEntry]) -> BTreeMap<FunID, CFG
 
 /// Returns the control flow graph of the given CFGEntry
 fn process_cfg(cfg: &CFGEntry, blocks: &[BlockEntry]) -> CFG<BlockID, FunID> {
+    println!("cfg {:?}\n blocks {:?}", cfg, blocks);
     let entry_block_id = cfg.entry;
     let exit_block_id = cfg.exit;
-    get_cfg_with_root(entry_block_id, exit_block_id, blocks)
+    let res = get_cfg_with_root(entry_block_id, exit_block_id, blocks);
+    println!("graph {:?}", Dot::new(&res.graph));
+    res
 }
 
 /// Given the block entries indexed by `BlockID`,

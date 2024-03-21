@@ -1,6 +1,6 @@
 //! Converts control flow graphs to regular expressions
 
-use std::fmt::Display;
+use std::fmt::{Display, Debug};
 
 use crate::extern_cfg::{BlockID, FunID};
 use crate::intern_cfg::CFG;
@@ -8,13 +8,14 @@ use crate::re::RegExp;
 use petgraph::graph::{Graph, NodeIndex};
 use petgraph::visit::EdgeRef;
 use petgraph::Direction::{Incoming, Outgoing};
+use petgraph::dot::{Dot, Config};
 
 /// Generalized NFA where the transitions are `RegExp<Alphabet, Name>`
 #[derive(Debug)]
 pub struct GNFA<Alphabet, Name> {
     start_state: NodeIndex,
     accepting_state: NodeIndex,
-    the_graph: Graph<(), RegExp<Alphabet, Name>>,
+    pub the_graph: Graph<(), RegExp<Alphabet, Name>>,
 }
 
 // In our case, Alphabet is the BlockID, Name is the FunID
@@ -35,7 +36,7 @@ impl<Alphabet, Name> Node<Alphabet, Name> {
     }
 }
 
-impl<Alphabet: Eq + Clone, Name: Eq + Clone + Ord + Display> GNFA<Alphabet, Name> {
+impl<Alphabet: Eq + Clone + Debug, Name: Eq + Clone + Ord + Debug> GNFA<Alphabet, Name> {
     /// Construct a `GNFA` corresponding to cfg `g`.
     ///
     /// The language accepted is the set of execution paths of `g`.
@@ -153,7 +154,9 @@ impl<Alphabet: Eq + Clone, Name: Eq + Clone + Ord + Display> GNFA<Alphabet, Name
     /// The language accepted doesn't change.
     pub fn reduce(&mut self) {
         while self.num_states() > 2 {
-            self.rip_state(self.next_to_rip());
+        let s_rip = self.next_to_rip();
+            self.rip_state(s_rip);
+            println!("after ripping {:?} {:?}", s_rip, Dot::new(&self.the_graph));
         }
     }
 
