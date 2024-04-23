@@ -1,6 +1,7 @@
 //! Regular expressions
 
-use std::{collections::BTreeMap, fmt::Debug, fmt::Display};
+use core::panic;
+use std::{collections::BTreeMap, fmt::Debug};
 
 /// Regular expressions over alphabet set `Alphabet`, and variable set `Name`
 /// a variable refers to an external regular expression
@@ -22,7 +23,28 @@ pub enum ParseErr<Alphabet> {
     Invalid,
 }
 
-impl<Alphabet: Eq + Clone + Debug, Name: Eq + Clone + Ord + Debug> RegExp<Alphabet, Name> {
+impl<Alphabet: Eq + Clone + Ord + Debug, Name: Eq + Clone + Ord + Debug> RegExp<Alphabet, Name> {
+    pub fn first(&self) -> Alphabet {
+        match self {
+            RegExp::Epsilon => panic!("first: start with epsilon"),
+            RegExp::Var(_) => panic!("first: start with var"),
+            RegExp::Literal(c) => c.clone(),
+            RegExp::Literals(cs) => cs[0].clone(),
+            RegExp::Concat(re, _) => re.first(),
+            RegExp::Seq(res) => res[0].first(),
+            RegExp::Alter(re1, re2) => {
+                let f1 = re1.first();
+                let f2 = re2.first();
+                if f1 == f2 {
+                    f1
+                } else {
+                    panic!("first: may begin with {:?} {:?}", f1, f2)
+                }
+            },
+            RegExp::Star(re) => re.first(),
+        }
+    }
+
     #[allow(dead_code)]
     pub fn var(x: Name) -> Self {
         Self::Var(x)
@@ -125,16 +147,18 @@ impl<Alphabet: Eq + Clone + Debug, Name: Eq + Clone + Ord + Debug> RegExp<Alphab
         &self,
         s: &'a [Alphabet],
         env: &BTreeMap<Name, RegExp<Alphabet, Name>>,
+        firsts: &BTreeMap<Alphabet, Name>,
         k: usize,
     ) -> Result<(Val<Alphabet>, &'a [Alphabet]), ParseErr<Alphabet>> {
         let mut stack = BTreeMap::new();
-        self._parse_k(s, env, k, &mut stack)
+        self._parse_k(s, env, firsts, k, &mut stack)
     }
 
     pub fn _parse_k<'a>(
         &self,
         s: &'a [Alphabet],
         env: &BTreeMap<Name, RegExp<Alphabet, Name>>,
+        firsts: &BTreeMap<Alphabet, Name>,
         k: usize,
         stack: &mut BTreeMap<Name, usize>,
     ) -> Result<(Val<Alphabet>, &'a [Alphabet]), ParseErr<Alphabet>> {
@@ -146,27 +170,44 @@ impl<Alphabet: Eq + Clone + Debug, Name: Eq + Clone + Ord + Debug> RegExp<Alphab
                     .expect(&format!("name {:?} doesn't exist in env", x));
                 let nested_level = *stack.entry(x.clone()).or_default();
                 if nested_level == k {
-                    match re._parse_k(s, env, k, stack) {
+                    match re._parse_k(s, env, firsts, k, stack) {
                         Ok((_, s)) => Ok((Val::Epsilon, s)),
                         Err(ParseErr::Abort(_)) => Err(ParseErr::Abort(Val::Epsilon)),
                         Err(ParseErr::Invalid) => Err(ParseErr::Invalid),
                     }
                 } else {
                     *stack.get_mut(x).unwrap() += 1;
-                    let res = re._parse_k(s, env, k, stack);
+                    let res = re._parse_k(s, env, firsts, k, stack);
                     *stack.get_mut(x).unwrap() -= 1;
                     res
                 }
             }
             RegExp::Literal(c) => {
                 if s.is_empty() {
-                    Err(ParseErr::Abort(Val::Star(Vec::new())))
+                    Err(ParseErr::Abort(Val::Epsilon))
                 } else {
                     if c == &s[0] {
                         Ok((Val::Literal(c.clone()), &s[1..]))
                     } else {
-                        println!("expected {:?} found {:?} stack: {:?}", c, &s, &stack);
-                        Err(ParseErr::Invalid)
+                        if let Some(x) = firsts.get(c) {
+                            let re = RegExp::Var(x.clone());
+                            let nested_level = *stack.entry(x.clone()).or_default();
+                            if nested_level == k {
+                                match re._parse_k(s, env, firsts, k, stack) {
+                                    Ok((_, s)) => Ok((Val::Epsilon, s)),
+                                    Err(ParseErr::Abort(_)) => Err(ParseErr::Abort(Val::Epsilon)),
+                                    Err(ParseErr::Invalid) => Err(ParseErr::Invalid),
+                                }
+                            } else {
+                                *stack.get_mut(x).unwrap() += 1;
+                                let res = re._parse_k(s, env, firsts, k, stack);
+                                *stack.get_mut(x).unwrap() -= 1;
+                                res
+                            }
+                        } else {
+                            println!("expected {:?} found {:?} stack: {:?}", c, &s, &stack);
+                            Err(ParseErr::Invalid)
+                        }
                     }
                 }
             }
@@ -188,8 +229,8 @@ impl<Alphabet: Eq + Clone + Debug, Name: Eq + Clone + Ord + Debug> RegExp<Alphab
                 Ok((Val::Literals(lit_vals), rest))
             }
             RegExp::Concat(r1, r2) => {
-                let (v1, s1) = r1._parse_k(s, env, k, stack)?;
-                match r2._parse_k(s1, env, k, stack) {
+                let (v1, s1) = r1._parse_k(s, env, firsts, k, stack)?;
+                match r2._parse_k(s1, env, firsts, k, stack) {
                     Ok((v2, s2)) => Ok((Val::Concat(Box::new(v1), Box::new(v2)), s2)),
                     Err(ParseErr::Abort(v2)) => {
                         Err(ParseErr::Abort(Val::Concat(Box::new(v1), Box::new(v2))))
@@ -201,7 +242,7 @@ impl<Alphabet: Eq + Clone + Debug, Name: Eq + Clone + Ord + Debug> RegExp<Alphab
                 let mut vals = Vec::new();
                 let mut rest = s;
                 for r in rs {
-                    match r._parse_k(rest, env, k, stack) {
+                    match r._parse_k(rest, env, firsts, k, stack) {
                         Ok((v, s)) => {
                             vals.push(v);
                             rest = s;
@@ -217,11 +258,11 @@ impl<Alphabet: Eq + Clone + Debug, Name: Eq + Clone + Ord + Debug> RegExp<Alphab
                 }
                 Ok((Val::Seq(vals), rest))
             }
-            RegExp::Alter(r1, r2) => match r1._parse_k(s, env, k, stack) {
+            RegExp::Alter(r1, r2) => match r1._parse_k(s, env, firsts, k, stack) {
                 res @ Ok(..) | res @ Err(ParseErr::Abort(..)) => res,
-                _ => r2._parse_k(s, env, k, stack),
+                _ => r2._parse_k(s, env, firsts,  k, stack),
             },
-            RegExp::Star(r) => match r.parse_star_k(s, env, k, stack) {
+            RegExp::Star(r) => match r.parse_star_k(s, env, firsts, k, stack) {
                 Ok((vals, s)) => Ok((Val::Star(vals), s)),
                 Err(ParseErr::Abort(val)) => Err(ParseErr::Abort(val)),
                 Err(ParseErr::Invalid) => Err(ParseErr::Invalid),
@@ -247,12 +288,13 @@ impl<Alphabet: Eq + Clone + Debug, Name: Eq + Clone + Ord + Debug> RegExp<Alphab
         &self,
         mut s: &'a [Alphabet],
         env: &BTreeMap<Name, Self>,
+        firsts: &BTreeMap<Alphabet, Name>,
         k: usize,
         stack: &mut BTreeMap<Name, usize>
     ) -> Result<(Vec<Val<Alphabet>>, &'a [Alphabet]), ParseErr<Alphabet>> {
         let mut acc = Vec::new();
         loop {
-            match self._parse_k(s, env, k, stack) {
+            match self._parse_k(s, env, firsts, k, stack) {
                 Ok((val, new_s)) => {
                     s = new_s;
                     if acc.len() == k {
@@ -383,7 +425,7 @@ mod tests {
         );
         let s = vec![1, 2, 1, 2, 1, 2, 1, 3];
         let k = 2;
-        let (v, _) = re.parse_k(&s, &BTreeMap::new(), k).unwrap();
+        let (v, _) = re.parse_k(&s, &BTreeMap::new(), &BTreeMap::new(), k).unwrap();
         let reduced = v.into_vec();
         assert!(reduced == vec![1, 2, 1, 2, 1, 3]);
     }

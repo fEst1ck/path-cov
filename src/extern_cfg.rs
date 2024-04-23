@@ -8,7 +8,7 @@ use std::{
 
 use crate::{convert::Node, intern_cfg::CFG};
 use petgraph::graph::Graph;
-use petgraph::dot::{Dot, Config};
+use petgraph::dot::Dot;
 
 
 pub type FunID = c_int;
