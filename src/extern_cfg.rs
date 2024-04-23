@@ -47,7 +47,7 @@ pub struct TopLevel {
     cfg_arr: *const CFGEntry,
     /// size of `block_arr`
     block_size: c_int,
-    block_arr: *const BlockEntry,
+    block_arr: *const *const BlockEntry,
 }
 
 /// Requires: `top_level` is not NULL
@@ -57,10 +57,17 @@ pub unsafe fn process_top_level(
     let top_level = top_level.as_ref().expect("top level");
     let cfgs = slice::from_raw_parts(top_level.cfg_arr, top_level.cfg_size as usize);
     let blocks = slice::from_raw_parts(top_level.block_arr, top_level.block_size as usize);
-    process_cfgs(cfgs, blocks)
+    let mut block_id_to_entry = BTreeMap::new();
+    for (i, block) in blocks.iter().enumerate() {
+        if !block.is_null() {
+            let block_entry = &**block;
+            block_id_to_entry.insert(i as BlockID, block_entry);
+        }
+    }
+    process_cfgs(cfgs, &block_id_to_entry)
 }
 
-fn process_cfgs(cfgs: &[CFGEntry], blocks: &[BlockEntry]) -> BTreeMap<FunID, CFG<BlockID, FunID>> {
+fn process_cfgs(cfgs: &[CFGEntry], blocks: &BTreeMap<BlockID, &BlockEntry>) -> BTreeMap<FunID, CFG<BlockID, FunID>> {
     cfgs.iter()
         .enumerate()
         .map(|(fun_id, cfg_entry)| (fun_id as FunID, process_cfg(cfg_entry, blocks)))
@@ -68,7 +75,7 @@ fn process_cfgs(cfgs: &[CFGEntry], blocks: &[BlockEntry]) -> BTreeMap<FunID, CFG
 }
 
 /// Returns the control flow graph of the given CFGEntry
-fn process_cfg(cfg: &CFGEntry, blocks: &[BlockEntry]) -> CFG<BlockID, FunID> {
+fn process_cfg(cfg: &CFGEntry, blocks: &BTreeMap<BlockID, &BlockEntry>) -> CFG<BlockID, FunID> {
     println!("cfg {:?}\n blocks {:?}", cfg, blocks);
     let entry_block_id = cfg.entry;
     let exit_block_id = cfg.exit;
@@ -79,12 +86,12 @@ fn process_cfg(cfg: &CFGEntry, blocks: &[BlockEntry]) -> CFG<BlockID, FunID> {
 
 /// Given the block entries indexed by `BlockID`,
 /// returns the control flow graph with root `entry`
-fn get_cfg_with_root(entry: BlockID, exit: BlockID, blocks: &[BlockEntry]) -> CFG<BlockID, FunID> {
+fn get_cfg_with_root(entry: BlockID, exit: BlockID, blocks: &BTreeMap<BlockID, &BlockEntry>) -> CFG<BlockID, FunID> {
     let mut graph = Graph::new();
     let mut block_id_to_node_idx = BTreeMap::new();
     // add node to graph for each block
     for block_id in DFS::new(blocks, entry) {
-        let block_entry = blocks.get(block_id as usize).expect("invalid block id");
+        let block_entry = blocks.get(&block_id).expect("invalid block id");
         let node_weight = if block_entry.calls == -1 {
             Node::Literal(block_id)
         } else if block_entry.calls == -2 {
@@ -119,8 +126,8 @@ fn get_cfg_with_root(entry: BlockID, exit: BlockID, blocks: &[BlockEntry]) -> CF
 
 /// Given the block entries indexed by `BlockID`,
 /// returns the id of the successor blocks of the given block
-fn get_successors(blocks: &[BlockEntry], block_id: BlockID) -> &[BlockID] {
-    let block_entry = blocks.get(block_id as usize).expect("invalid block id");
+fn get_successors<'a>(blocks: &'a BTreeMap<BlockID, &'a BlockEntry>, block_id: BlockID) -> &'a [BlockID] {
+    let block_entry = blocks.get(&block_id).expect("invalid block id");
     unsafe {
         slice::from_raw_parts(
             block_entry.successors_arr,
@@ -133,12 +140,12 @@ fn get_successors(blocks: &[BlockEntry], block_id: BlockID) -> &[BlockID] {
 struct DFS<'a> {
     to_visit: Vec<BlockID>,
     visited: BTreeSet<BlockID>,
-    blocks: &'a [BlockEntry],
+    blocks: &'a BTreeMap<BlockID, &'a BlockEntry>,
 }
 
 impl<'a> DFS<'a> {
     /// Traverse the CFG with root `entry`
-    fn new(blocks: &'a [BlockEntry], entry: BlockID) -> Self {
+    fn new(blocks: &'a BTreeMap<BlockID, &BlockEntry>, entry: BlockID) -> Self {
         Self {
             to_visit: vec![entry],
             visited: BTreeSet::new(),
@@ -165,7 +172,7 @@ impl<'a> Iterator for DFS<'a> {
         self.visited.insert(next_unvisited);
         let block = self
             .blocks
-            .get(next_unvisited as usize)
+            .get(&(next_unvisited as BlockID))
             .expect("invalid block id");
         for suc_block_id in
             unsafe { slice::from_raw_parts(block.successors_arr, block.successor_size as usize) }
