@@ -8,7 +8,7 @@ use crate::{
     intern_cfg::CFG,
     re::{RegExp, ParseErr},
 };
-use petgraph::dot::{Dot};
+use petgraph::dot::Dot;
 
 pub struct PathReducer<BlockID, FunID> {
     res: BTreeMap<FunID, RegExp<BlockID, FunID>>,
@@ -17,25 +17,27 @@ pub struct PathReducer<BlockID, FunID> {
 }
 
 impl<BlockID: Eq + Clone + Ord+ Debug, FunID: Eq + Clone + Ord + Debug> PathReducer<BlockID, FunID> {
-    pub fn reduce(&self, path: &[BlockID], cfg: FunID) -> Vec<BlockID> {
+    pub fn reduce(&self, mut path: &[BlockID], cfg: FunID) -> Vec<BlockID> {
         let re = self.res.get(&cfg).expect("invalid fun_id");
-        match re.parse_k(path, &self.res, &self.firsts, self.k) {
-            Ok((reduced_path, res)) => {
-                assert!(res.is_empty(), "there is a leftover of path {:?}", res);
-                reduced_path.into_vec()
-            }
-            Err(ParseErr::Abort(val)) => {
-                val.into_vec()
-            }
-            Err(ParseErr::Invalid) => {
-                unreachable!("invalid path {:?}\n{:?}", path, self.res)
+        let mut reduced_paths = Vec::new();
+        while !path.is_empty() {
+            match re.parse_k(path, &self.res, &self.firsts, self.k) {
+                Ok((reduced_path, res)) => {
+                    assert!(res.is_empty(), "there is a leftover of path {:?}", res);
+                    let mut this_path = reduced_path.into_vec();
+                    reduced_paths.append(&mut this_path);
+                    path = res;
+                }
+                Err(ParseErr::Abort(val)) => {
+                    return val.into_vec()
+                }
+                Err(ParseErr::Invalid) => {
+                    unreachable!("invalid path {:?}\n{:?}", path, self.res)
+                }
+                
             }
         }
-        // let (reduced_path, res) = re
-        //     .parse_k(path, &self.res, self.k)
-        //     .expect(&format!("ill structured path\nregex {:?}\n path {:?}", re, path));
-        // assert!(res.is_empty(), "there is a leftover of path {:?}", res);
-        // reduced_path.into_vec()
+        reduced_paths
     }
 }
 
