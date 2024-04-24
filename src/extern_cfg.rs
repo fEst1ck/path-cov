@@ -80,7 +80,7 @@ fn process_cfg(cfg: &CFGEntry, blocks: &BTreeMap<BlockID, &BlockEntry>) -> CFG<B
     let entry_block_id = cfg.entry;
     let exit_block_id = cfg.exit;
     let res = get_cfg_with_root(entry_block_id, exit_block_id, blocks);
-    println!("graph {:?}", Dot::new(&res.graph));
+    // println!("graph {:?}", Dot::new(&res.graph));
     res
 }
 

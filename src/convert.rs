@@ -156,7 +156,7 @@ impl<Alphabet: Eq + Clone + Ord + Debug, Name: Eq + Clone + Ord + Debug> GNFA<Al
         while self.num_states() > 2 {
         let s_rip = self.next_to_rip();
             self.rip_state(s_rip);
-            println!("after ripping {:?} {:?}", s_rip, Dot::new(&self.the_graph));
+            // println!("after ripping {:?} {:?}", s_rip, Dot::new(&self.the_graph));
         }
     }
 

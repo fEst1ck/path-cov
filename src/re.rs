@@ -205,7 +205,7 @@ impl<Alphabet: Eq + Clone + Ord + Debug, Name: Eq + Clone + Ord + Debug> RegExp<
                                 res
                             }
                         } else {
-                            println!("expected {:?} found {:?} stack: {:?}", c, &s, &stack);
+                            // println!("expected {:?} found {:?} stack: {:?}", c, &s, &stack);
                             Err(ParseErr::Invalid)
                         }
                     }
