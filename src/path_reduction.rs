@@ -63,9 +63,9 @@ fn convert_cfgs(
         .par_bridge()
         .map(|(fun_id, cfg)| {
             let mut gnfa = GNFA::from_intern_cfg(cfg);
-            println!("before reduce {:?}", Dot::new(&gnfa.the_graph));
+            // println!("before reduce {:?}", Dot::new(&gnfa.the_graph));
             gnfa.reduce();
-            println!("after reduce {:?}", Dot::new(&gnfa.the_graph));
+            // println!("after reduce {:?}", Dot::new(&gnfa.the_graph));
             let re = gnfa.start_to_end().clone();
             (fun_id, re)
         })
