@@ -76,7 +76,7 @@ fn process_cfgs(cfgs: &[CFGEntry], blocks: &BTreeMap<BlockID, &BlockEntry>) -> B
 
 /// Returns the control flow graph of the given CFGEntry
 fn process_cfg(cfg: &CFGEntry, blocks: &BTreeMap<BlockID, &BlockEntry>) -> CFG<BlockID, FunID> {
-    println!("cfg {:?}\n blocks {:?}", cfg, blocks);
+    // println!("cfg {:?}\n blocks {:?}", cfg, blocks);
     let entry_block_id = cfg.entry;
     let exit_block_id = cfg.exit;
     let res = get_cfg_with_root(entry_block_id, exit_block_id, blocks);
