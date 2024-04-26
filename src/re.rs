@@ -194,7 +194,7 @@ impl<Alphabet: Eq + Clone + Ord + Debug, Name: Eq + Clone + Ord + Debug> RegExp<
                             re._parse_k(s, env, firsts, k, stack)
                         } else {
                             // println!("expected {:?} found {:?} stack: {:?}", c, &s, &stack);
-                            println!("firsts: {:?}", firsts);
+                            // println!("firsts: {:?}", firsts);
                             Err(ParseErr::Invalid)
                         }
                     }
