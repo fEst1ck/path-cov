@@ -190,7 +190,7 @@ impl<Alphabet: Eq + Clone + Ord + Debug, Name: Eq + Clone + Ord + Debug> RegExp<
                     if c == &s[0] {
                         Ok((Val::Literal(c.clone()), &s[1..]))
                     } else {
-                        if let Some(x) = firsts.get(c) {
+                        if let Some(x) = firsts.get(&s[0]) {
                             let re = RegExp::Var(x.clone());
                             re._parse_k(s, env, firsts, k, stack)
                         } else {
