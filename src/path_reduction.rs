@@ -18,12 +18,13 @@ pub struct PathReducer<BlockID, FunID> {
 
 impl<BlockID: Eq + Clone + Ord+ Debug, FunID: Eq + Clone + Ord + Debug> PathReducer<BlockID, FunID> {
     pub fn reduce(&self, mut path: &[BlockID], cfg: FunID) -> Vec<BlockID> {
+        let unreduced = path;
         let re = self.res.get(&cfg).expect("invalid fun_id");
         let mut reduced_paths = Vec::new();
         while !path.is_empty() {
             match re.parse_k(path, &self.res, &self.firsts, self.k) {
                 Ok((reduced_path, res)) => {
-                    assert!(res.is_empty(), "there is a leftover of path {:?}", res);
+                    assert!(res.is_empty(), "there is a leftover of path {:?}\nunreduced: {:?}", res, unreduced);
                     let mut this_path = reduced_path.into_vec();
                     reduced_paths.append(&mut this_path);
                     path = res;
