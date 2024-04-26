@@ -23,6 +23,7 @@ impl<BlockID: Eq + Clone + Ord+ Debug, FunID: Eq + Clone + Ord + Debug> PathRedu
         while !path.is_empty() {
             match re.parse_k(path, &self.res, &self.firsts, self.k) {
                 Ok((reduced_path, res)) => {
+                    assert!(res.len() < path.len());
                     let mut this_path = reduced_path.into_vec();
                     reduced_paths.append(&mut this_path);
                     path = res;
