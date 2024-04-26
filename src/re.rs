@@ -191,21 +191,10 @@ impl<Alphabet: Eq + Clone + Ord + Debug, Name: Eq + Clone + Ord + Debug> RegExp<
                     } else {
                         if let Some(x) = firsts.get(c) {
                             let re = RegExp::Var(x.clone());
-                            let nested_level = *stack.entry(x.clone()).or_default();
-                            if nested_level == k {
-                                match re._parse_k(s, env, firsts, k, stack) {
-                                    Ok((_, s)) => Ok((Val::Epsilon, s)),
-                                    Err(ParseErr::Abort(_)) => Err(ParseErr::Abort(Val::Epsilon)),
-                                    Err(ParseErr::Invalid) => Err(ParseErr::Invalid),
-                                }
-                            } else {
-                                *stack.get_mut(x).unwrap() += 1;
-                                let res = re._parse_k(s, env, firsts, k, stack);
-                                *stack.get_mut(x).unwrap() -= 1;
-                                res
-                            }
+                            re._parse_k(s, env, firsts, k, stack)
                         } else {
                             // println!("expected {:?} found {:?} stack: {:?}", c, &s, &stack);
+                            println!("firsts: {:?}", firsts);
                             Err(ParseErr::Invalid)
                         }
                     }
