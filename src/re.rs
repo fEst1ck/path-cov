@@ -162,6 +162,7 @@ impl<Alphabet: Eq + Clone + Ord + Debug, Name: Eq + Clone + Ord + Debug> RegExp<
         k: usize,
         stack: &mut BTreeMap<Name, usize>,
     ) -> Result<(Val<Alphabet>, &'a [Alphabet]), ParseErr<Alphabet>> {
+        println!("_parse_k\nre:{:?}\ns:{:?}", self, s);
         match self {
             RegExp::Epsilon => Ok((Val::Star(Vec::new()), s)),
             RegExp::Var(x) => {
