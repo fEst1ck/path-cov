@@ -88,7 +88,7 @@ impl<Alphabet: Eq + Clone + Ord + Debug, Name: Eq + Clone + Ord + Debug> RegExp<
                 es.append(&mut es2);
                 Seq(es)
             }
-            (r1, r2) => Concat(Box::new(r1), Box::new(r2)),
+            (r1, r2) => Seq(vec![r1, r2]),
         }
         //Self::Concat(Box::new(r1), Box::new(r2))
     }
@@ -206,17 +206,38 @@ impl<Alphabet: Eq + Clone + Ord + Debug, Name: Eq + Clone + Ord + Debug> RegExp<
                 let mut rest = s;
                 for lit in lits {
                     if rest.is_empty() {
-                        return Err(ParseErr::Abort(Val::Literals(lit_vals)));
+                        return Err(ParseErr::Abort(Val::Seq(lit_vals)));
                     } else {
+                        if let Some(x) = firsts.get(&rest[0]) {
+                            let re = RegExp::Var(x.clone());
+                            let res = re._parse_k(s, env, firsts, k, stack);
+                            match res {
+                                Ok((val, rest_path)) => {
+                                    lit_vals.push(val);
+                                    rest = rest_path;
+                                },
+                                Err(ParseErr::Abort(v)) => {
+                                    lit_vals.push(v);
+                                    return Err(ParseErr::Abort(Val::Seq(lit_vals)))
+                                },
+                                Err(ParseErr::Invalid) => {
+                                    return Err(ParseErr::Invalid)
+                                }
+                            }
+                        } else {
+                            // println!("expected {:?} found {:?} stack: {:?}", c, &s, &stack);
+                            // println!("firsts: {:?}", firsts);
+                            return Err(ParseErr::Invalid)
+                        }
                         if lit == &rest[0] {
-                            lit_vals.push(lit.clone());
+                            lit_vals.push(Val::Literal(lit.clone()));
                             rest = &rest[1..];
                         } else {
                             return Err(ParseErr::Invalid);
                         }
                     }
                 }
-                Ok((Val::Literals(lit_vals), rest))
+                Ok((Val::Seq(lit_vals), rest))
             }
             RegExp::Concat(r1, r2) => {
                 let (v1, s1) = r1._parse_k(s, env, firsts, k, stack)?;
