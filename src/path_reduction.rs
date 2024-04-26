@@ -30,7 +30,8 @@ impl<BlockID: Eq + Clone + Ord+ Debug, FunID: Eq + Clone + Ord + Debug> PathRedu
                     path = res;
                 }
                 Err(ParseErr::Abort(val)) => {
-                    return val.into_vec()
+                    reduced_paths.append(&mut val.into_vec());
+                    return reduced_paths
                 }
                 Err(ParseErr::Invalid) => {
                     unreachable!("invalid path {:?}\n{:?}", path, self.res)
