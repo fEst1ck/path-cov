@@ -18,6 +18,7 @@ pub struct PathReducer<BlockID, FunID> {
 
 impl<BlockID: Eq + Clone + Ord+ Debug, FunID: Eq + Clone + Ord + Debug> PathReducer<BlockID, FunID> {
     pub fn reduce(&self, mut path: &[BlockID], cfg: FunID) -> Vec<BlockID> {
+        let unreduced_len = path.len();
         let re = self.res.get(&cfg).expect("invalid fun_id");
         let mut reduced_paths = Vec::new();
         while !path.is_empty() {
@@ -38,6 +39,7 @@ impl<BlockID: Eq + Clone + Ord+ Debug, FunID: Eq + Clone + Ord + Debug> PathRedu
                 
             }
         }
+        assert!(unreduced_len >= reduced_paths.len(), "unreduced_len: {}, reduced_len: {}", unreduced_len, reduced_paths.len());
         reduced_paths
     }
 }
