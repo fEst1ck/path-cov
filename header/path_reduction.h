@@ -12,7 +12,7 @@ typedef int32_t FunID;
 PathReducer* get_path_reducer(const void* top_level, int32_t k);
 
 // Frees a path reducer
-void path_reducer_free(PathReducer* ptr);
+void free_path_reducer(PathReducer* ptr);
 
 void free_boxed_array(int* ptr, size_t len);
 
