@@ -25,6 +25,15 @@ pub unsafe extern "C" fn free_path_reducer(ptr: *mut PathReducer<BlockID, FunID>
 }
 
 #[no_mangle]
+pub extern "C" fn free_boxed_array(ptr: *mut i32, len: usize) {
+    unsafe {
+        // Reconstruct the Box from the raw pointer
+        let _boxed_slice = Box::from_raw(std::slice::from_raw_parts_mut(ptr, len));
+        // Memory is freed when _boxed_slice goes out of scope
+    }
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn reduce_path(
    reducer: *const PathReducer<BlockID, BlockID>,
    path: *const BlockID,
