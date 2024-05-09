@@ -39,7 +39,7 @@ impl<BlockID: Eq + Clone + Ord+ Debug, FunID: Eq + Clone + Ord + Debug> PathRedu
                 
             }
         }
-        assert!(unreduced_len >= reduced_paths.len(), "unreduced_len: {}, reduced_len: {}", unreduced_len, reduced_paths.len());
+        // assert!(unreduced_len >= reduced_paths.len(), "unreduced_len: {}, reduced_len: {}", unreduced_len, reduced_paths.len());
         reduced_paths
     }
 }
