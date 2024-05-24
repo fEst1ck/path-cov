@@ -88,7 +88,7 @@ impl<Alphabet: Eq + Clone + Ord + Debug, Name: Eq + Clone + Ord + Debug> GNFA<Al
                     .edge_weight(e)
                     .map(|old_arrow| {
                         let old_arrow_copy = old_arrow.clone();
-                        RegExp::Alter(Box::new(old_arrow_copy), Box::new(arrow))
+                        RegExp::alter(old_arrow_copy, arrow)
                     })
                     .unwrap();
             }

@@ -55,47 +55,83 @@ impl<Alphabet: Eq + Clone + Ord + Debug, Name: Eq + Clone + Ord + Debug> RegExp<
         Self::Literal(c)
     }
 
-    #[allow(dead_code)]
     pub fn concat(r1: RegExp<Alphabet, Name>, r2: RegExp<Alphabet, Name>) -> Self {
         use RegExp::*;
         match (r1, r2) {
             (Epsilon, r2) => r2,
             (r1, Epsilon) => r1,
-            (Literal(l1), Literal(l2)) => Literals(vec![l1, l2]),
-            (Literal(l1), Literals(mut l2)) => {
-                let mut res = vec![l1];
-                res.append(&mut l2);
-                Literals(res)
-            }
-            (Literals(mut l1), Literal(l2)) => {
-                l1.push(l2);
-                Literals(l1)
-            }
-            (Literals(mut l1), Literals(mut l2)) => {
-                l1.append(&mut l2);
-                Literals(l1)
-            }
-            (Seq(mut es1), Seq(mut es2)) => {
-                es1.append(&mut es2);
-                Seq(es1)
-            }
-            (Seq(mut es1), r2) => {
-                es1.push(r2);
-                Seq(es1)
-            }
-            (r1, Seq(mut es2)) => {
-                let mut es = vec![r1];
-                es.append(&mut es2);
-                Seq(es)
-            }
-            (r1, r2) => Seq(vec![r1, r2]),
+            // (Literal(l1), Literal(l2)) => Literals(vec![l1, l2]),
+            // (Literal(l1), Literals(mut l2)) => {
+            //     let mut res = vec![l1];
+            //     res.append(&mut l2);
+            //     Literals(res)
+            // }
+            // (Literals(mut l1), Literal(l2)) => {
+            //     l1.push(l2);
+            //     Literals(l1)
+            // }
+            // (Literals(mut l1), Literals(mut l2)) => {
+            //     l1.append(&mut l2);
+            //     Literals(l1)
+            // }
+            // (Seq(mut es1), Seq(mut es2)) => {
+            //     es1.append(&mut es2);
+            //     Seq(es1)
+            // }
+            // (Seq(mut es1), r2) => {
+            //     es1.push(r2);
+            //     Seq(es1)
+            // }
+            // (r1, Seq(mut es2)) => {
+            //     let mut es = vec![r1];
+            //     es.append(&mut es2);
+            //     Seq(es)
+            // }
+            // (r1, r2) => Seq(vec![r1, r2]),
+            (r1, r2) => Self::Concat(Box::new(r1), Box::new(r2)),
         }
         //Self::Concat(Box::new(r1), Box::new(r2))
     }
 
-    #[allow(dead_code)]
     pub fn alter(r1: Self, r2: Self) -> Self {
-        Self::Alter(Box::new(r1), Box::new(r2))
+        // Self::Alter(Box::new(r1), Box::new(r2))
+        let (prefix, r1, r2) = Self::alter_prefix_acc(RegExp::Epsilon, r1, r2);
+        let (r1, r2, postfix) = Self::alter_post_acc(r1, r2, RegExp::Epsilon);
+        RegExp::concat(prefix, RegExp::concat(RegExp::Alter(Box::new(r1), Box::new(r2)), postfix))
+    }
+
+    pub fn alter_prefix_acc(prefix: Self, r1: Self, r2: Self) -> (Self, Self, Self) {
+        use RegExp::*;
+        match (r1, r2) {
+            (r1, r2) if r1 == r2 => (RegExp::concat(prefix, r1), Epsilon, Epsilon),
+            // (Literal(l1), Literal(l2)) if l1 == l2 => (RegExp::concat(prefix, Literal(l1)), Epsilon, Epsilon),
+            // (Var(x), Var(y)) if x == y => (RegExp::concat(prefix, Var(x)), Epsilon, Epsilon),
+            (Concat(a, b), Concat(c, d)) => {
+                let (p1, a_, c_) = Self::alter_prefix_acc(prefix, *a, *c);
+                if matches!(a_, Epsilon) && matches!(c_, Epsilon) {
+                    Self::alter_prefix_acc(p1, *b, *d)
+                } else {
+                    (p1, RegExp::concat(a_, *b), RegExp::concat(c_, *d))
+                }
+            }
+            (r1, r2) => (prefix, r1, r2),
+        }
+    }
+
+    pub fn alter_post_acc(r1: Self, r2: Self, postfix: Self) -> (Self, Self, Self) {
+        use RegExp::*;
+        match (r1, r2) {
+            (r1, r2) if r1 == r2 => (Epsilon, Epsilon, RegExp::concat(r1, postfix)),
+            (Concat(a, b), Concat(c, d)) => {
+                let (b_, d_, p1) = Self::alter_post_acc(*b, *d, postfix);
+                if matches!(b_, Epsilon) && matches!(d_, Epsilon) {
+                    Self::alter_post_acc(*a, *c, p1)
+                } else {
+                    (p1, RegExp::concat(*a, b_), RegExp::concat(*c, d_))
+                }
+            }
+            (r1, r2) => (r1, r2, postfix),
+        }
     }
 
     pub fn star(r: Self) -> Self {
