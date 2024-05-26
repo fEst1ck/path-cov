@@ -1,6 +1,7 @@
 //! Converts control flow graphs to regular expressions
 
 use std::fmt::Debug;
+use std::sync::Arc;
 
 use crate::extern_cfg::{BlockID, FunID};
 use crate::intern_cfg::CFG;
@@ -15,7 +16,7 @@ use petgraph::dot::Dot;
 pub struct GNFA<Alphabet, Name> {
     start_state: NodeIndex,
     accepting_state: NodeIndex,
-    pub the_graph: Graph<(), RegExp<Alphabet, Name>>,
+    pub the_graph: Graph<(), Arc<RegExp<Alphabet, Name>>>,
 }
 
 // In our case, Alphabet is the BlockID, Name is the FunID
@@ -47,14 +48,14 @@ impl<Alphabet: Eq + Clone + Ord + Debug, Name: Eq + Clone + Ord + Debug> GNFA<Al
             |edge_id, _weight| {
                 let dst_node_id = g.edge_endpoints(edge_id).unwrap().1;
                 let dst_node_weight = g.node_weight(dst_node_id).unwrap();
-                RegExp::Literal(dst_node_weight.clone())
+                Arc::new(RegExp::Literal(dst_node_weight.clone()))
             },
         );
         let start_state = the_graph.add_node(());
         the_graph.add_edge(
             start_state,
             entry,
-            RegExp::Literal(g.node_weight(entry).unwrap().clone()),
+            Arc::new(RegExp::Literal(g.node_weight(entry).unwrap().clone())),
         );
         Self {
             start_state,
@@ -80,7 +81,7 @@ impl<Alphabet: Eq + Clone + Ord + Debug, Name: Eq + Clone + Ord + Debug> GNFA<Al
     }
 
     // add edge, if the edge already exist, add the weight to it with RegExp:Alter
-    fn add_arrow(&mut self, s: NodeIndex, t: NodeIndex, arrow: RegExp<Alphabet, Name>) {
+    fn add_arrow(&mut self, s: NodeIndex, t: NodeIndex, arrow: Arc<RegExp<Alphabet, Name>>) {
         match self.the_graph.find_edge(s, t) {
             Some(e) => {
                 self.the_graph[e] = self
@@ -129,7 +130,7 @@ impl<Alphabet: Eq + Clone + Ord + Debug, Name: Eq + Clone + Ord + Debug> GNFA<Al
                         RegExp::concat(
                             e_in,
                             RegExp::concat(
-                                RegExp::star(e_rip_weight.as_ref().unwrap().clone()),
+                                Arc::new(RegExp::star(e_rip_weight.as_ref().unwrap().clone())),
                                 e_out,
                             ),
                         )
@@ -181,21 +182,21 @@ impl GNFA<BlockID, FunID> {
             |edge_id, _weight| {
                 let dst_node_id = graph.edge_endpoints(edge_id).unwrap().1;
                 let dst_node_weight = graph.node_weight(dst_node_id).unwrap();
-                dst_node_weight.clone().to_re()
+                Arc::new(dst_node_weight.clone().to_re())
             },
         );
         let start_state = the_graph.add_node(());
         the_graph.add_edge(
             start_state,
             entry,
-            graph.node_weight(entry).unwrap().clone().to_re(),
+            Arc::new(graph.node_weight(entry).unwrap().clone().to_re()),
         );
         let exit_nodes: Vec<_> = the_graph.node_indices().filter(|node_idx| the_graph.neighbors(*node_idx).count() == 0).collect();
         assert!(exit_nodes.len() > 0);
         if exit_nodes.len() > 1 {
             let exit_node = the_graph.add_node(());
             for node in exit_nodes {
-                the_graph.add_edge(node, exit_node, RegExp::Epsilon);
+                the_graph.add_edge(node, exit_node, Arc::new(RegExp::Epsilon));
             }
             Self {
                 start_state,

@@ -1,7 +1,7 @@
 //! Regular expressions
 
 use core::panic;
-use std::{collections::BTreeMap, fmt::Debug};
+use std::{collections::BTreeMap, fmt::Debug, sync::Arc};
 
 /// Regular expressions over alphabet set `Alphabet`, and variable set `Name`
 /// a variable refers to an external regular expression
@@ -11,10 +11,10 @@ pub enum RegExp<Alphabet, Name> {
     Var(Name),
     Literal(Alphabet),
     Literals(Vec<Alphabet>),
-    Concat(Box<RegExp<Alphabet, Name>>, Box<RegExp<Alphabet, Name>>),
-    Seq(Vec<RegExp<Alphabet, Name>>),
-    Alter(Box<RegExp<Alphabet, Name>>, Box<RegExp<Alphabet, Name>>),
-    Star(Box<RegExp<Alphabet, Name>>),
+    Concat(Arc<RegExp<Alphabet, Name>>, Arc<RegExp<Alphabet, Name>>),
+    Seq(Vec<Arc<RegExp<Alphabet, Name>>>),
+    Alter(Arc<RegExp<Alphabet, Name>>, Arc<RegExp<Alphabet, Name>>),
+    Star(Arc<RegExp<Alphabet, Name>>),
 }
 
 #[derive(Debug)]
@@ -55,87 +55,89 @@ impl<Alphabet: Eq + Clone + Ord + Debug, Name: Eq + Clone + Ord + Debug> RegExp<
         Self::Literal(c)
     }
 
-    pub fn concat(r1: RegExp<Alphabet, Name>, r2: RegExp<Alphabet, Name>) -> Self {
+    pub fn concat(r1: Arc<RegExp<Alphabet, Name>>, r2: Arc<RegExp<Alphabet, Name>>) -> Arc<Self> {
         use RegExp::*;
-        match (r1, r2) {
-            (Epsilon, r2) => r2,
-            (r1, Epsilon) => r1,
-            // (Literal(l1), Literal(l2)) => Literals(vec![l1, l2]),
+        match (r1.as_ref(), r2.as_ref()) {
+            (Epsilon, _r) => r2,
+            (_r, Epsilon) => r1,
+            // (Literal(l1), Literal(l2)) => Arc::new(Literals(vec![l1.clone(), l2.clone()])),
             // (Literal(l1), Literals(mut l2)) => {
-            //     let mut res = vec![l1];
+            //     let mut res = vec![l1.clone()];
             //     res.append(&mut l2);
-            //     Literals(res)
+            //     Arc::new(Literals(res))
             // }
             // (Literals(mut l1), Literal(l2)) => {
-            //     l1.push(l2);
-            //     Literals(l1)
+            //     l1.push(l2.clone());
+            //     Arc::new(Literals(l1))
             // }
             // (Literals(mut l1), Literals(mut l2)) => {
             //     l1.append(&mut l2);
-            //     Literals(l1)
+            //     Arc::new(Literals(l1))
             // }
             // (Seq(mut es1), Seq(mut es2)) => {
             //     es1.append(&mut es2);
-            //     Seq(es1)
+            //     Arc::new(Seq(es1))
             // }
-            // (Seq(mut es1), r2) => {
+            // (Seq(mut es1), _r2) => {
             //     es1.push(r2);
-            //     Seq(es1)
+            //     Arc::new(Seq(es1))
             // }
-            // (r1, Seq(mut es2)) => {
+            // (_r1, Seq(mut es2)) => {
             //     let mut es = vec![r1];
             //     es.append(&mut es2);
-            //     Seq(es)
+            //     Arc::new(Seq(es))
             // }
-            // (r1, r2) => Seq(vec![r1, r2]),
-            (r1, r2) => Self::Concat(Box::new(r1), Box::new(r2)),
+            // (_r1, _r2) => Arc::new(Seq(vec![r1, r2])),
+            (_, _) => Arc::new(RegExp::Concat(r1, r2)),
         }
-        //Self::Concat(Box::new(r1), Box::new(r2))
+        //Self::Concat(Arc::new(r1), Arc::new(r2))
     }
 
-    pub fn alter(r1: Self, r2: Self) -> Self {
-        // Self::Alter(Box::new(r1), Box::new(r2))
-        let (prefix, r1, r2) = Self::alter_prefix_acc(RegExp::Epsilon, r1, r2);
-        let (r1, r2, postfix) = Self::alter_post_acc(r1, r2, RegExp::Epsilon);
-        RegExp::concat(prefix, RegExp::concat(RegExp::Alter(Box::new(r1), Box::new(r2)), postfix))
+    pub fn alter(r1: Arc<Self>, r2: Arc<Self>) -> Arc<Self> {
+        Arc::new(Self::Alter(r1, r2))
+        // let (prefix, r1, r2) = Self::alter_prefix_acc(Arc::new(RegExp::Epsilon), r1, r2);
+        // let (r1, r2, postfix) = Self::alter_post_acc(r1, r2, Arc::new(RegExp::Epsilon));
+        // RegExp::concat(prefix, RegExp::concat(Arc::new(RegExp::Alter(r1, r2)), postfix))
     }
 
-    pub fn alter_prefix_acc(prefix: Self, r1: Self, r2: Self) -> (Self, Self, Self) {
+    pub fn alter_prefix_acc(prefix: Arc<Self>, r1: Arc<Self>, r2: Arc<Self>) -> (Arc<Self>, Arc<Self>, Arc<Self>) {
         use RegExp::*;
-        match (r1, r2) {
-            (r1, r2) if r1 == r2 => (RegExp::concat(prefix, r1), Epsilon, Epsilon),
-            // (Literal(l1), Literal(l2)) if l1 == l2 => (RegExp::concat(prefix, Literal(l1)), Epsilon, Epsilon),
-            // (Var(x), Var(y)) if x == y => (RegExp::concat(prefix, Var(x)), Epsilon, Epsilon),
+        let epsilon = Arc::new(Epsilon);
+        match (r1.as_ref(), r2.as_ref()) {
+            (_r1, _r2) if r1 == r2 => (RegExp::concat(prefix, r1), epsilon.clone(), epsilon.clone()),
+            // (Literal(l1), Literal(l2)) if l1 == l2 => (RegExp::concat(prefix, Literal(l1)), epsilon, epsilon),
+            // (Var(x), Var(y)) if x == y => (RegExp::concat(prefix, Var(x)), epsilon, epsilon),
             (Concat(a, b), Concat(c, d)) => {
-                let (p1, a_, c_) = Self::alter_prefix_acc(prefix, *a, *c);
-                if matches!(a_, Epsilon) && matches!(c_, Epsilon) {
-                    Self::alter_prefix_acc(p1, *b, *d)
+                let (p1, a_, c_) = Self::alter_prefix_acc(prefix, a.clone(), c.clone());
+                if matches!(a_.as_ref(), Epsilon) && matches!(c_.as_ref(), Epsilon) {
+                    Self::alter_prefix_acc(p1, b.clone(), d.clone())
                 } else {
-                    (p1, RegExp::concat(a_, *b), RegExp::concat(c_, *d))
+                    (p1, RegExp::concat(a_, b.clone()), RegExp::concat(c_, d.clone()))
                 }
             }
-            (r1, r2) => (prefix, r1, r2),
+            (_r1, _r2) => (prefix, r1, r2),
         }
     }
 
-    pub fn alter_post_acc(r1: Self, r2: Self, postfix: Self) -> (Self, Self, Self) {
+    pub fn alter_post_acc(r1: Arc<Self>, r2: Arc<Self>, postfix: Arc<Self>) -> (Arc<Self>, Arc<Self>, Arc<Self>) {
         use RegExp::*;
-        match (r1, r2) {
-            (r1, r2) if r1 == r2 => (Epsilon, Epsilon, RegExp::concat(r1, postfix)),
+        let epsilon = Arc::new(Epsilon);
+        match (r1.as_ref(), r2.as_ref()) {
+            (r1_, r2_) if r1 == r2 => (epsilon.clone(), epsilon, RegExp::concat(r1, postfix)),
             (Concat(a, b), Concat(c, d)) => {
-                let (b_, d_, p1) = Self::alter_post_acc(*b, *d, postfix);
-                if matches!(b_, Epsilon) && matches!(d_, Epsilon) {
-                    Self::alter_post_acc(*a, *c, p1)
+                let (b_, d_, p1) = Self::alter_post_acc(b.clone(), d.clone(), postfix);
+                if matches!(b_.as_ref(), Epsilon) && matches!(d_.as_ref(), Epsilon) {
+                    Self::alter_post_acc(a.clone(), c.clone(), p1)
                 } else {
-                    (p1, RegExp::concat(*a, b_), RegExp::concat(*c, d_))
-                }
+                    (p1, RegExp::concat(a.clone(), b_), RegExp::concat(c.clone(), d_))
+                }   
             }
-            (r1, r2) => (r1, r2, postfix),
+            (r1_, r2_) => (r1, r2, postfix),
         }
     }
 
-    pub fn star(r: Self) -> Self {
-        Self::Star(Box::new(r))
+    pub fn star(r: Arc<Self>) -> Self {
+        Self::Star(r)
     }
 
     #[allow(dead_code)]
@@ -378,36 +380,6 @@ pub enum Val<Alphabet> {
 }
 
 impl<Alphabet> Val<Alphabet> {
-    #[allow(dead_code)]
-    pub fn reduce(self, k: usize) -> Vec<Alphabet> {
-        assert!(k != 0);
-        match self {
-            Val::Literal(c) => vec![c],
-            Val::Concat(v1, v2) => {
-                let mut r1 = v1.reduce(k);
-                let mut r2 = v2.reduce(k);
-                r1.append(&mut r2);
-                r1
-            }
-            Val::Star(vs) => {
-                let mut res = Vec::new();
-                let mut counter = 0;
-                for v in vs {
-                    if counter >= k {
-                        break;
-                    } else {
-                        res.append(&mut v.reduce(k))
-                    }
-                    counter += 1;
-                }
-                res
-            }
-            Val::Epsilon => todo!(),
-            Val::Literals(_) => todo!(),
-            Val::Seq(_) => todo!(),
-        }
-    }
-
     pub fn into_vec(self) -> Vec<Alphabet> {
         match self {
             Val::Epsilon => Vec::new(),
