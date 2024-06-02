@@ -112,8 +112,11 @@ fn get_cfg_with_root(entry: BlockID, exit: BlockID, blocks: &BTreeMap<BlockID, &
     // add edges to the graph
     for block_id in DFS::new(blocks, entry as BlockID) {
         let node_idx = *block_id_to_node_idx.get(&block_id).unwrap();
-        for succ_block in get_successors(blocks, block_id) {
-            let succ_node_idx = *block_id_to_node_idx.get(succ_block).unwrap();
+        for succ_block in get_successors(blocks, block_id).iter().cloned().collect::<BTreeSet<_>>().into_iter() {
+            if block_id == 36290 {
+                println!("block_id: {}, succ_block: {}", block_id, succ_block);
+            }
+            let succ_node_idx = *block_id_to_node_idx.get(&succ_block).unwrap();
             graph.add_edge(node_idx, succ_node_idx, ());
         }
     }

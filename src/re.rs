@@ -1,7 +1,11 @@
 //! Regular expressions
 
 use core::panic;
-use std::{collections::BTreeMap, fmt::Debug, sync::Arc};
+use std::{
+    collections::BTreeMap,
+    fmt::{format, Debug},
+    sync::Arc,
+};
 
 /// Regular expressions over alphabet set `Alphabet`, and variable set `Name`
 /// a variable refers to an external regular expression
@@ -20,28 +24,105 @@ pub enum RegExp<Alphabet, Name> {
 #[derive(Debug)]
 pub enum ParseErr<Alphabet> {
     Abort(Val<Alphabet>),
-    Invalid,
+    Invalid(String),
 }
 
 impl<Alphabet: Eq + Clone + Ord + Debug, Name: Eq + Clone + Ord + Debug> RegExp<Alphabet, Name> {
-    pub fn first(&self) -> Alphabet {
+    pub fn size(&self) {
         match self {
-            RegExp::Epsilon => panic!("first: start with epsilon"),
-            RegExp::Var(_) => panic!("first: start with var"),
-            RegExp::Literal(c) => c.clone(),
-            RegExp::Literals(cs) => cs[0].clone(),
-            RegExp::Concat(re, _) => re.first(),
-            RegExp::Seq(res) => res[0].first(),
-            RegExp::Alter(re1, re2) => {
-                let f1 = re1.first();
-                let f2 = re2.first();
-                if f1 == f2 {
-                    f1
-                } else {
-                    panic!("first: may begin with {:?} {:?}", f1, f2)
+            RegExp::Epsilon | RegExp::Var(_) | RegExp::Literal(_) => (),
+            RegExp::Literals(vs) => (),
+            RegExp::Concat(r1, r2) => {
+                r1.size();
+                r2.size();
+            }
+            RegExp::Seq(rs) => {
+                for r in rs {
+                    r.size();
                 }
-            },
-            RegExp::Star(re) => re.first(),
+            }
+            RegExp::Alter(r1, r2) => {
+                r1.size();
+                r2.size();
+            }
+            RegExp::Star(r) => r.size(),
+        }
+    }
+
+    pub fn debug(&self) {
+        match self {
+            RegExp::Epsilon => println!("Epsilon"),
+            RegExp::Var(x) => println!("Var({:?})", x),
+            RegExp::Literal(lit) => println!("Literal({:?})", lit),
+            RegExp::Literals(lits) => println!("Literals({:?})", lits),
+            RegExp::Concat(x, y) => {
+                println!("Concat(");
+                x.debug();
+                println!(",");
+                y.debug();
+                println!(")");
+            }
+            RegExp::Seq(_) => todo!(),
+            RegExp::Alter(x, y) => {
+                println!("Alter(");
+                x.debug();
+                println!(",");
+                y.debug();
+                println!(")");
+            }
+            RegExp::Star(x) => {
+                println!("Star(");
+                x.debug();
+                println!(")");
+            }
+        }
+    }
+
+    pub fn first(&self) -> Alphabet {
+        // match self {
+        //     RegExp::Epsilon => panic!("first: start with epsilon"),
+        //     RegExp::Var(_) => panic!("first: start with var"),
+        //     RegExp::Literal(c) => c.clone(),
+        //     RegExp::Literals(cs) => cs[0].clone(),
+        //     RegExp::Concat(re, _) => re.first(),
+        //     RegExp::Seq(res) => res[0].first(),
+        //     RegExp::Alter(re1, re2) => {
+        //         let f1 = re1.first();
+        //         let f2 = re2.first();
+        //         if f1 == f2 {
+        //             f1
+        //         } else {
+        //             panic!("first: may begin with {:?} {:?}", f1, f2)
+        //         }
+        //     },
+        //     RegExp::Star(re) => re.first(),
+        // }
+        self.first_opt().unwrap()
+    }
+
+    pub fn first_opt(&self) -> Option<Alphabet> {
+        match self {
+            RegExp::Epsilon => None,
+            RegExp::Var(x) => panic!("first: start with var {:?}", x),
+            RegExp::Literal(c) => Some(c.clone()),
+            RegExp::Literals(cs) => Some(cs[0].clone()),
+            RegExp::Concat(re1, re2) => {
+                if let Some(c) = re1.first_opt() {
+                    Some(c)
+                } else {
+                    re2.first_opt()
+                }
+            }
+            RegExp::Seq(res) => todo!(),
+            RegExp::Alter(re1, re2) => {
+                let f1 = re1.first_opt();
+                if f1.is_some() {
+                    return f1;
+                }
+                let f2 = re2.first_opt();
+                f2
+            }
+            RegExp::Star(re) => re.first_opt(),
         }
     }
 
@@ -94,17 +175,33 @@ impl<Alphabet: Eq + Clone + Ord + Debug, Name: Eq + Clone + Ord + Debug> RegExp<
     }
 
     pub fn alter(r1: Arc<Self>, r2: Arc<Self>) -> Arc<Self> {
-        Arc::new(Self::Alter(r1, r2))
+        assert!(!matches!(r1.as_ref(), RegExp::Epsilon));
+        assert!(!matches!(r2.as_ref(), RegExp::Epsilon));
+        if r1 == r2 {
+            return r1;
+        }
         // let (prefix, r1, r2) = Self::alter_prefix_acc(Arc::new(RegExp::Epsilon), r1, r2);
         // let (r1, r2, postfix) = Self::alter_post_acc(r1, r2, Arc::new(RegExp::Epsilon));
-        // RegExp::concat(prefix, RegExp::concat(Arc::new(RegExp::Alter(r1, r2)), postfix))
+        // RegExp::concat(
+        //     prefix,
+        //     RegExp::concat(Arc::new(RegExp::Alter(r1, r2)), postfix),
+        // )
+        Arc::new(RegExp::Alter(r1, r2))
     }
 
-    pub fn alter_prefix_acc(prefix: Arc<Self>, r1: Arc<Self>, r2: Arc<Self>) -> (Arc<Self>, Arc<Self>, Arc<Self>) {
+    pub fn alter_prefix_acc(
+        prefix: Arc<Self>,
+        r1: Arc<Self>,
+        r2: Arc<Self>,
+    ) -> (Arc<Self>, Arc<Self>, Arc<Self>) {
+        assert!(!matches!(r1.as_ref(), RegExp::Epsilon));
+        assert!(!matches!(r2.as_ref(), RegExp::Epsilon));
         use RegExp::*;
         let epsilon = Arc::new(Epsilon);
         match (r1.as_ref(), r2.as_ref()) {
-            (_r1, _r2) if r1 == r2 => (RegExp::concat(prefix, r1), epsilon.clone(), epsilon.clone()),
+            (_r1, _r2) if r1 == r2 => {
+                (RegExp::concat(prefix, r1), epsilon.clone(), epsilon.clone())
+            }
             // (Literal(l1), Literal(l2)) if l1 == l2 => (RegExp::concat(prefix, Literal(l1)), epsilon, epsilon),
             // (Var(x), Var(y)) if x == y => (RegExp::concat(prefix, Var(x)), epsilon, epsilon),
             (Concat(a, b), Concat(c, d)) => {
@@ -112,14 +209,24 @@ impl<Alphabet: Eq + Clone + Ord + Debug, Name: Eq + Clone + Ord + Debug> RegExp<
                 if matches!(a_.as_ref(), Epsilon) && matches!(c_.as_ref(), Epsilon) {
                     Self::alter_prefix_acc(p1, b.clone(), d.clone())
                 } else {
-                    (p1, RegExp::concat(a_, b.clone()), RegExp::concat(c_, d.clone()))
+                    (
+                        p1,
+                        RegExp::concat(a_, b.clone()),
+                        RegExp::concat(c_, d.clone()),
+                    )
                 }
             }
             (_r1, _r2) => (prefix, r1, r2),
         }
     }
 
-    pub fn alter_post_acc(r1: Arc<Self>, r2: Arc<Self>, postfix: Arc<Self>) -> (Arc<Self>, Arc<Self>, Arc<Self>) {
+    pub fn alter_post_acc(
+        r1: Arc<Self>,
+        r2: Arc<Self>,
+        postfix: Arc<Self>,
+    ) -> (Arc<Self>, Arc<Self>, Arc<Self>) {
+        assert!(!matches!(r1.as_ref(), RegExp::Epsilon));
+        assert!(!matches!(r2.as_ref(), RegExp::Epsilon));
         use RegExp::*;
         let epsilon = Arc::new(Epsilon);
         match (r1.as_ref(), r2.as_ref()) {
@@ -129,10 +236,14 @@ impl<Alphabet: Eq + Clone + Ord + Debug, Name: Eq + Clone + Ord + Debug> RegExp<
                 if matches!(b_.as_ref(), Epsilon) && matches!(d_.as_ref(), Epsilon) {
                     Self::alter_post_acc(a.clone(), c.clone(), p1)
                 } else {
-                    (p1, RegExp::concat(a.clone(), b_), RegExp::concat(c.clone(), d_))
-                }   
+                    (
+                        RegExp::concat(a.clone(), b_),
+                        RegExp::concat(c.clone(), d_),
+                        p1,
+                    )
+                }
             }
-            (r1_, r2_) => (r1, r2, postfix),
+            (_r1, _r2) => (r1, r2, postfix),
         }
     }
 
@@ -189,7 +300,8 @@ impl<Alphabet: Eq + Clone + Ord + Debug, Name: Eq + Clone + Ord + Debug> RegExp<
         k: usize,
     ) -> Result<(Val<Alphabet>, &'a [Alphabet]), ParseErr<Alphabet>> {
         let mut stack = BTreeMap::new();
-        self._parse_k(s, env, firsts, k, &mut stack)
+        let mut matched = 0;
+        self._parse_k(s, env, firsts, k, &mut stack, &mut matched)
     }
 
     pub fn _parse_k<'a>(
@@ -199,42 +311,70 @@ impl<Alphabet: Eq + Clone + Ord + Debug, Name: Eq + Clone + Ord + Debug> RegExp<
         firsts: &BTreeMap<Alphabet, Name>,
         k: usize,
         stack: &mut BTreeMap<Name, usize>,
+        matched: &mut usize,
     ) -> Result<(Val<Alphabet>, &'a [Alphabet]), ParseErr<Alphabet>> {
-        // println!("_parse_k\nre:{:?}\ns:{:?}", self, s);
+        // if !s.is_empty() {
+        //     println!("matched so far: {:?} to match {:?}", matched, &s[0]);
+        // }
+        // println!("_parse_k\nre:{:?}\ns:{:?}", self.first(), s);
+        // println!("s:{:?}", &s[..10]);
         match self {
             RegExp::Epsilon => Ok((Val::Star(Vec::new()), s)),
             RegExp::Var(x) => {
+                // println!("var");
                 let re = env
                     .get(x)
                     .expect(&format!("name {:?} doesn't exist in env", x));
                 let nested_level = *stack.entry(x.clone()).or_default();
                 if nested_level == k {
-                    match re._parse_k(s, env, firsts, k, stack) {
+                    match re._parse_k(s, env, firsts, k, stack, matched) {
                         Ok((_, s)) => Ok((Val::Epsilon, s)),
                         Err(ParseErr::Abort(_)) => Err(ParseErr::Abort(Val::Epsilon)),
-                        Err(ParseErr::Invalid) => Err(ParseErr::Invalid),
+                        res @ Err(ParseErr::Invalid(_)) => res,
                     }
                 } else {
                     *stack.get_mut(x).unwrap() += 1;
-                    let res = re._parse_k(s, env, firsts, k, stack);
+                    let res = re._parse_k(s, env, firsts, k, stack, matched);
                     *stack.get_mut(x).unwrap() -= 1;
                     res
                 }
             }
             RegExp::Literal(c) => {
+                // println!("literal {:?}", c);
                 if s.is_empty() {
                     Err(ParseErr::Abort(Val::Epsilon))
                 } else {
                     if c == &s[0] {
+                        // println!("matched {:?}", c);
+                        *matched += 1;
+                        // println!("matched so far: {:?}", matched);
                         Ok((Val::Literal(c.clone()), &s[1..]))
                     } else {
                         if let Some(x) = firsts.get(&s[0]) {
-                            let re = RegExp::Var(x.clone());
-                            re._parse_k(s, env, firsts, k, stack)
+                            // println!("implicit call!");
+                            // let re = RegExp::Var(x.clone());
+                            // let (val, s1) = re._parse_k(s, env, firsts, k, stack, matched)?;
+                            // match RegExp::Literal(c.clone())._parse_k(s1, env, firsts, k, stack, matched) {
+                            //     Ok((val2, s2)) => Ok((Val::Concat(Box::new(val), Box::new(val2)), s2)),
+                            //     Err(ParseErr::Abort(x)) => Err(ParseErr::Abort(Val::Concat(Box::new(val), Box::new(x)))),
+                            //     res @ Err(ParseErr::Invalid(_)) => res,
+                            // }
+                            Err(ParseErr::Abort(Val::Epsilon))
+                            // res
+                            // match res {
+                            //     Ok((val, s)) => todo!(),
+                            //     Err(_) => todo!(),
+                            // }
                         } else {
                             // println!("expected {:?} found {:?} stack: {:?}", c, &s, &stack);
+                            // println!("no function starts with {:?}", &s[0]);
+                            // println!("expected {:?} found {:?}", c, &s[0]);
                             // println!("firsts: {:?}", firsts);
-                            Err(ParseErr::Invalid)
+                            // Err(ParseErr::Invalid(format!("no function starts with {:?}", &s[0])))
+                            Err(ParseErr::Invalid(format!(
+                                "expected {:?} found {:?}",
+                                c, &s[0]
+                            )))
                         }
                     }
                 }
@@ -252,24 +392,26 @@ impl<Alphabet: Eq + Clone + Ord + Debug, Name: Eq + Clone + Ord + Debug> RegExp<
                         } else {
                             if let Some(x) = firsts.get(&rest[0]) {
                                 let re = RegExp::Var(x.clone());
-                                let res = re._parse_k(s, env, firsts, k, stack);
+                                let res = re._parse_k(s, env, firsts, k, stack, matched);
                                 match res {
                                     Ok((val, rest_path)) => {
                                         lit_vals.push(val);
                                         rest = rest_path;
-                                    },
+                                    }
                                     Err(ParseErr::Abort(v)) => {
                                         lit_vals.push(v);
-                                        return Err(ParseErr::Abort(Val::Seq(lit_vals)))
-                                    },
-                                    Err(ParseErr::Invalid) => {
-                                        return Err(ParseErr::Invalid)
+                                        return Err(ParseErr::Abort(Val::Seq(lit_vals)));
                                     }
+                                    res @ Err(ParseErr::Invalid(_)) => return res,
                                 }
                             } else {
                                 // println!("expected {:?} found {:?} stack: {:?}", c, &s, &stack);
+                                // println!("expected {:?} found {:?}", lit, &rest[0]);
                                 // println!("firsts: {:?}", firsts);
-                                return Err(ParseErr::Invalid)
+                                return Err(ParseErr::Invalid(format!(
+                                    "expected {:?} found {:?}",
+                                    lit, &rest[0]
+                                )));
                             }
                         }
                     }
@@ -277,20 +419,23 @@ impl<Alphabet: Eq + Clone + Ord + Debug, Name: Eq + Clone + Ord + Debug> RegExp<
                 Ok((Val::Seq(lit_vals), rest))
             }
             RegExp::Concat(r1, r2) => {
-                let (v1, s1) = r1._parse_k(s, env, firsts, k, stack)?;
-                match r2._parse_k(s1, env, firsts, k, stack) {
+                // println!("concat");
+                // println!("concat1 {:?}", r1);
+                let (v1, s1) = r1._parse_k(s, env, firsts, k, stack, matched)?;
+                // println!("concat2 {:?}", r1);
+                match r2._parse_k(s1, env, firsts, k, stack, matched) {
                     Ok((v2, s2)) => Ok((Val::Concat(Box::new(v1), Box::new(v2)), s2)),
                     Err(ParseErr::Abort(v2)) => {
                         Err(ParseErr::Abort(Val::Concat(Box::new(v1), Box::new(v2))))
                     }
-                    Err(ParseErr::Invalid) => Err(ParseErr::Invalid),
+                    res @ Err(ParseErr::Invalid(_)) => res,
                 }
             }
             RegExp::Seq(rs) => {
                 let mut vals = Vec::new();
                 let mut rest = s;
                 for r in rs {
-                    match r._parse_k(rest, env, firsts, k, stack) {
+                    match r._parse_k(rest, env, firsts, k, stack, matched) {
                         Ok((v, s)) => {
                             vals.push(v);
                             rest = s;
@@ -299,22 +444,34 @@ impl<Alphabet: Eq + Clone + Ord + Debug, Name: Eq + Clone + Ord + Debug> RegExp<
                             vals.push(v);
                             return Err(ParseErr::Abort(Val::Seq(vals)));
                         }
-                        Err(ParseErr::Invalid) => {
-                            return Err(ParseErr::Invalid);
+                        res @ Err(ParseErr::Invalid(_)) => {
+                            return res;
                         }
                     }
                 }
                 Ok((Val::Seq(vals), rest))
             }
-            RegExp::Alter(r1, r2) => match r1._parse_k(s, env, firsts, k, stack) {
-                res @ Ok(..) | res @ Err(ParseErr::Abort(..)) => res,
-                _ => r2._parse_k(s, env, firsts,  k, stack),
-            },
-            RegExp::Star(r) => match r.parse_star_k(s, env, firsts, k, stack) {
+            RegExp::Alter(r1, r2) => {
+                // println!("alter");
+                let cur = *matched;
+                // println!("alter1");
+                match r1._parse_k(s, env, firsts, k, stack, matched) {
+                    res @ Ok(..) | res @ Err(ParseErr::Abort(..)) => res,
+                    Err(ParseErr::Invalid(msg)) => {
+                        // println!("r1 invalid: {:?}", msg);
+                        *matched = cur;
+                        // println!("alter2");
+                        r2._parse_k(s, env, firsts, k, stack, matched)
+                    }
+                }
+            }
+            RegExp::Star(r) => {
+                // println!("star");
+                match r.parse_star_k(s, env, firsts, k, stack, matched) {
                 Ok((vals, s)) => Ok((Val::Star(vals), s)),
                 Err(ParseErr::Abort(val)) => Err(ParseErr::Abort(val)),
-                Err(ParseErr::Invalid) => Err(ParseErr::Invalid),
-            },
+                Err(ParseErr::Invalid(s)) => Err(ParseErr::Invalid(s)),
+            }},
         }
     }
 
@@ -338,11 +495,13 @@ impl<Alphabet: Eq + Clone + Ord + Debug, Name: Eq + Clone + Ord + Debug> RegExp<
         env: &BTreeMap<Name, Self>,
         firsts: &BTreeMap<Alphabet, Name>,
         k: usize,
-        stack: &mut BTreeMap<Name, usize>
+        stack: &mut BTreeMap<Name, usize>,
+        matched: &mut usize,
     ) -> Result<(Vec<Val<Alphabet>>, &'a [Alphabet]), ParseErr<Alphabet>> {
         let mut acc = Vec::new();
         loop {
-            match self._parse_k(s, env, firsts, k, stack) {
+            let cur = *matched;
+            match self._parse_k(s, env, firsts, k, stack, matched) {
                 Ok((val, new_s)) => {
                     s = new_s;
                     if acc.len() == k {
@@ -361,7 +520,10 @@ impl<Alphabet: Eq + Clone + Ord + Debug, Name: Eq + Clone + Ord + Debug> RegExp<
                         return Err(ParseErr::Abort(Val::Star(acc)));
                     }
                 }
-                Err(ParseErr::Invalid) => break,
+                Err(ParseErr::Invalid(_)) => {
+                    *matched = cur;
+                    break
+                },
             }
         }
         Ok((acc, s))
@@ -443,7 +605,9 @@ mod tests {
         );
         let s = vec![1, 2, 1, 2, 1, 2, 1, 3];
         let k = 2;
-        let (v, _) = re.parse_k(&s, &BTreeMap::new(), &BTreeMap::new(), k).unwrap();
+        let (v, _) = re
+            .parse_k(&s, &BTreeMap::new(), &BTreeMap::new(), k)
+            .unwrap();
         let reduced = v.into_vec();
         assert!(reduced == vec![1, 2, 1, 2, 1, 3]);
     }
@@ -557,7 +721,11 @@ mod tests {
     #[test]
     fn test4() {
         // f = 1(2|f)3
-        let re = RegExp::Seq(vec![RegExp::literal(1), RegExp::alter(RegExp::Literal(2), RegExp::Var(0)), RegExp::literal(3)]);
+        let re = RegExp::Seq(vec![
+            RegExp::literal(1),
+            RegExp::alter(RegExp::Literal(2), RegExp::Var(0)),
+            RegExp::literal(3),
+        ]);
         let s = vec![1, 1, 1, 2, 3, 3, 3];
         let mut env = BTreeMap::new();
         env.insert(0, re.clone());

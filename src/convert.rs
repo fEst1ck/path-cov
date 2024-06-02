@@ -7,7 +7,7 @@ use crate::extern_cfg::{BlockID, FunID};
 use crate::intern_cfg::CFG;
 use crate::re::RegExp;
 use petgraph::graph::{Graph, NodeIndex};
-use petgraph::visit::EdgeRef;
+use petgraph::visit::{EdgeRef, IntoEdges};
 use petgraph::Direction::{Incoming, Outgoing};
 use petgraph::dot::Dot;
 
@@ -163,6 +163,7 @@ impl<Alphabet: Eq + Clone + Ord + Debug, Name: Eq + Clone + Ord + Debug> GNFA<Al
 
     /// Return a reference to an edge from the start state to the accepting state.
     pub fn start_to_end(&self) -> &RegExp<Alphabet, Name> {
+        assert!(self.the_graph.edges_connecting(self.start_state, self.accepting_state).count() == 1);
         let idx = self
             .the_graph
             .find_edge(self.start_state, self.accepting_state)
