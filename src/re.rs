@@ -352,14 +352,14 @@ impl<Alphabet: Eq + Clone + Ord + Debug, Name: Eq + Clone + Ord + Debug> RegExp<
                     } else {
                         if let Some(x) = firsts.get(&s[0]) {
                             // println!("implicit call!");
-                            // let re = RegExp::Var(x.clone());
-                            // let (val, s1) = re._parse_k(s, env, firsts, k, stack, matched)?;
-                            // match RegExp::Literal(c.clone())._parse_k(s1, env, firsts, k, stack, matched) {
-                            //     Ok((val2, s2)) => Ok((Val::Concat(Box::new(val), Box::new(val2)), s2)),
-                            //     Err(ParseErr::Abort(x)) => Err(ParseErr::Abort(Val::Concat(Box::new(val), Box::new(x)))),
-                            //     res @ Err(ParseErr::Invalid(_)) => res,
-                            // }
-                            Err(ParseErr::Abort(Val::Epsilon))
+                            let re = RegExp::Var(x.clone());
+                            let (val, s1) = re._parse_k(s, env, firsts, k, stack, matched)?;
+                            match RegExp::Literal(c.clone())._parse_k(s1, env, firsts, k, stack, matched) {
+                                Ok((val2, s2)) => Ok((Val::Concat(Box::new(val), Box::new(val2)), s2)),
+                                Err(ParseErr::Abort(x)) => Err(ParseErr::Abort(Val::Concat(Box::new(val), Box::new(x)))),
+                                res @ Err(ParseErr::Invalid(_)) => res,
+                            }
+                            // Err(ParseErr::Abort(Val::Epsilon))
                             // res
                             // match res {
                             //     Ok((val, s)) => todo!(),
