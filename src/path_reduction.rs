@@ -17,10 +17,13 @@ pub struct PathReducer<BlockID, FunID> {
 }
 
 impl<BlockID: Eq + Clone + Ord+ Debug, FunID: Eq + Clone + Ord + Debug> PathReducer<BlockID, FunID> {
-    pub fn reduce(&self, mut path: &[BlockID], _cfg: FunID) -> Vec<BlockID> {
+    pub fn reduce(&self, mut path: &[BlockID], cfg: FunID) -> Vec<BlockID> {
         let unreduced_len = path.len();
+        if path.is_empty() {
+            return Vec::new();
+        }
         let cfg = self.firsts.get(&path[0]).expect(&format!("no fun starts with {:?}", path[0]));
-        let re = self.res.get(cfg).expect("invalid fun_id");
+        let re = self.res.get(&cfg).expect("invalid fun_id");
         let mut reduced_paths = Vec::new();
         while !path.is_empty() {
             match re.parse_k(path, &self.res, &self.firsts, self.k) {
