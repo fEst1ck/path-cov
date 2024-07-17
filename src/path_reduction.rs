@@ -18,7 +18,7 @@ pub struct PathReducer<BlockID, FunID> {
 
 impl<BlockID: Eq + Clone + Ord+ Debug, FunID: Eq + Clone + Ord + Debug> PathReducer<BlockID, FunID> {
     pub fn reduce(&self, mut path: &[BlockID], cfg: FunID) -> Vec<BlockID> {
-        let unreduced_len = path.len();
+        let unureduced = path;
         if path.is_empty() {
             return Vec::new();
         }
@@ -38,9 +38,7 @@ impl<BlockID: Eq + Clone + Ord+ Debug, FunID: Eq + Clone + Ord + Debug> PathRedu
                     return reduced_paths
                 }
                 Err(ParseErr::Invalid(s)) => {
-
-                    panic!("invalid path {:?}\n{}", &path[0..100], s);
-                    unreachable!("invalid path {:?}\n{:?}", &path[0..10], self.res)
+                    return unureduced.to_vec();
                 }
                 
             }
