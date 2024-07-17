@@ -38,7 +38,7 @@ impl<BlockID: Eq + Clone + Ord+ Debug, FunID: Eq + Clone + Ord + Debug> PathRedu
                     return reduced_paths
                 }
                 Err(ParseErr::Invalid(s)) => {
-                    return unureduced.to_vec();
+                    return vec![];
                 }
                 
             }
