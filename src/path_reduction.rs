@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, fmt::Debug};
+use std::{collections::BTreeMap, fmt::Debug, env};
 
 use rayon::iter::{ParallelBridge, ParallelIterator};
 
@@ -9,6 +9,11 @@ use crate::{
     re::{RegExp, ParseErr},
 };
 use petgraph::dot::Dot;
+
+const PATH_REDUCTION_DEBUG: &'static str = "PATH_REDUCTION_DEBUG";
+const PATH_REDUCTION_ON_ERROR: &'static str = "PATH_REDUCTION_ON_ERROR";
+const FULL_PATH : &'static str = "FULL_PATH";
+const EMPTY_PATH : &'static str = "EMPTY_PATH";
 
 pub struct PathReducer<BlockID, FunID> {
     res: BTreeMap<FunID, RegExp<BlockID, FunID>>,
@@ -38,12 +43,25 @@ impl<BlockID: Eq + Clone + Ord+ Debug, FunID: Eq + Clone + Ord + Debug> PathRedu
                     return reduced_paths
                 }
                 Err(ParseErr::Invalid(s)) => {
-                    return vec![];
+                    if let Ok(on_error) = env::var(PATH_REDUCTION_ON_ERROR) {
+                        match on_error.as_str() {
+                            FULL_PATH => {
+                                return unureduced.to_vec();
+                            }
+                            EMPTY_PATH => {
+                                return vec![];
+                            }
+                            _ => {
+                                panic!("invalid value for PATH_REDUCTION_ON_ERROR: {}", on_error);
+                            }
+                        }
+                    } else {
+                        panic!("invalid path: {:?}, error: {}", path, s);
+                    }
                 }
                 
             }
         }
-        // assert!(unreduced_len >= reduced_paths.len(), "unreduced_len: {}, reduced_len: {}", unreduced_len, reduced_paths.len());
         reduced_paths
     }
 }
@@ -54,11 +72,6 @@ impl PathReducer<BlockID, FunID> {
         let mut firsts = BTreeMap::new();
         for (fun_id, re) in res.iter() {
             let first = re.first();
-            if first == 36282 {
-                println!("found!");
-                // println!("fun_id: {:?}\n, re: {:?}", fun_id, re);
-                // re.debug();
-            }
             let old = firsts.insert(first, fun_id.clone());
             if let Some(old_fun_id) = old {
                 panic!("functions {} {} both start with block {}", old_fun_id, fun_id, first);
