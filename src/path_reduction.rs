@@ -56,7 +56,7 @@ impl<BlockID: Eq + Clone + Ord+ Debug, FunID: Eq + Clone + Ord + Debug> PathRedu
                             }
                         }
                     } else {
-                        panic!("invalid path: {:?}, error: {}", path, s);
+                        panic!("invalid path: {:?}, error: {}", unreduced, s);
                     }
                 }
                 
