@@ -193,9 +193,22 @@ impl GNFA<BlockID, FunID> {
             Arc::new(graph.node_weight(entry).unwrap().clone().to_re()),
         );
         let exit_nodes: Vec<_> = the_graph.node_indices().filter(|node_idx| the_graph.neighbors(*node_idx).count() == 0).collect();
-        if exit_nodes.len() != 1 {
+        if exit_nodes.len() > 1 {
             let exit_node = the_graph.add_node(());
             for node in exit_nodes {
+                the_graph.add_edge(node, exit_node, Arc::new(RegExp::Epsilon));
+            }
+            Self {
+                start_state,
+                accepting_state: exit_node,
+                the_graph
+            }
+        } else if exit_nodes.len() == 0 {
+            let exit_node = the_graph.add_node(());
+            for node in the_graph.node_indices() {
+                if node == exit {
+                    continue;
+                }
                 the_graph.add_edge(node, exit_node, Arc::new(RegExp::Epsilon));
             }
             Self {
