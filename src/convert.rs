@@ -206,7 +206,7 @@ impl GNFA<BlockID, FunID> {
         } else if exit_nodes.len() == 0 {
             let exit_node = the_graph.add_node(());
             for node in the_graph.node_indices() {
-                if node == exit {
+                if node == exit || node == start_state {
                     continue;
                 }
                 the_graph.add_edge(node, exit_node, Arc::new(RegExp::Epsilon));
