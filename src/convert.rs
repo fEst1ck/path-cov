@@ -177,7 +177,7 @@ impl GNFA<BlockID, FunID> {
     ///
     /// The language accepted is the set of execution paths of `g`.
     pub fn from_intern_cfg(graph: CFG<BlockID, FunID>) -> Self {
-        let CFG { entry, _exit, graph } = graph;
+        let CFG { entry, exit: _, graph } = graph;
         let mut the_graph = graph.map(
             |_node_id, _weight| (),
             |edge_id, _weight| {
@@ -204,18 +204,7 @@ impl GNFA<BlockID, FunID> {
                 the_graph
             }
         } else if exit_nodes.len() == 0 {
-            let exit_node = the_graph.add_node(());
-            for node in the_graph.node_indices() {
-                if node == exit || node == start_state {
-                    continue;
-                }
-                the_graph.add_edge(node, exit_node, Arc::new(RegExp::Epsilon));
-            }
-            Self {
-                start_state,
-                accepting_state: exit_node,
-                the_graph
-            }
+            unimplemented!("no exit node");
         } else {
             Self {
                 start_state,
