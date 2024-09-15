@@ -177,7 +177,7 @@ impl GNFA<BlockID, FunID> {
     ///
     /// The language accepted is the set of execution paths of `g`.
     pub fn from_intern_cfg(graph: CFG<BlockID, FunID>) -> Self {
-        let CFG { entry, exit, graph } = graph;
+        let CFG { entry, _exit, graph } = graph;
         let mut the_graph = graph.map(
             |_node_id, _weight| (),
             |edge_id, _weight| {
@@ -219,7 +219,7 @@ impl GNFA<BlockID, FunID> {
         } else {
             Self {
                 start_state,
-                accepting_state: exit,
+                accepting_state: exit_nodes[0],
                 the_graph,
             }
         }

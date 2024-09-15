@@ -119,7 +119,7 @@ fn get_cfg_with_root(entry: BlockID, exit: BlockID, blocks: &BTreeMap<BlockID, &
     }
     CFG {
         entry: *block_id_to_node_idx.get(&entry).expect("entry block idx"),
-        exit: *block_id_to_node_idx.get(&exit).expect("exit block idx"),
+        exit: *block_id_to_node_idx.entry(&exit).or_insert(graph.add_node(())),
         graph,
     }
 }
