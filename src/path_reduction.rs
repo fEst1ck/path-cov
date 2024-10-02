@@ -1,14 +1,11 @@
 use std::{collections::BTreeMap, fmt::Debug, env};
 
-use rayon::iter::{ParallelBridge, ParallelIterator};
-
 use crate::{
     convert::GNFA,
     extern_cfg::{BlockID, FunID},
     intern_cfg::CFG,
     re::{RegExp, ParseErr},
 };
-use petgraph::dot::Dot;
 
 const PATH_REDUCTION_DEBUG: &'static str = "PATH_REDUCTION_DEBUG";
 const PATH_REDUCTION_ON_ERROR: &'static str = "PATH_REDUCTION_ON_ERROR";
@@ -22,13 +19,14 @@ pub struct PathReducer<BlockID, FunID> {
 }
 
 impl<BlockID: Eq + Clone + Ord+ Debug, FunID: Eq + Clone + Ord + Debug> PathReducer<BlockID, FunID> {
-    pub fn reduce(&self, mut path: &[BlockID], cfg: FunID) -> Vec<BlockID> {
+    pub fn reduce(&self, mut path: &[BlockID], _cfg: FunID) -> Vec<BlockID> {
         let unreduced = path;
         if path.is_empty() {
             return Vec::new();
         }
         let cfg = self.firsts.get(&path[0]).expect(&format!("no fun starts with {:?}", path[0]));
-        let re = self.res.get(&cfg).expect("invalid fun_id");
+        // let re = self.res.get(&cfg).expect("invalid fun_id");
+        let re = RegExp::Var(cfg.clone());
         let mut reduced_paths = Vec::new();
         while !path.is_empty() {
             match re.parse_k(path, &self.res, &self.firsts, self.k) {

@@ -3,7 +3,7 @@
 use core::panic;
 use std::{
     collections::BTreeMap,
-    fmt::{format, Debug},
+    fmt::Debug,
     sync::Arc,
 };
 
@@ -21,31 +21,21 @@ pub enum RegExp<Alphabet, Name> {
     Star(Arc<RegExp<Alphabet, Name>>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ParseErr<Alphabet> {
     Abort(Val<Alphabet>),
     Invalid(String),
 }
 
 impl<Alphabet: Eq + Clone + Ord + Debug, Name: Eq + Clone + Ord + Debug> RegExp<Alphabet, Name> {
-    pub fn size(&self) {
+    pub fn size(&self) -> usize {
         match self {
-            RegExp::Epsilon | RegExp::Var(_) | RegExp::Literal(_) => (),
-            RegExp::Literals(vs) => (),
-            RegExp::Concat(r1, r2) => {
-                r1.size();
-                r2.size();
-            }
-            RegExp::Seq(rs) => {
-                for r in rs {
-                    r.size();
-                }
-            }
-            RegExp::Alter(r1, r2) => {
-                r1.size();
-                r2.size();
-            }
-            RegExp::Star(r) => r.size(),
+            RegExp::Epsilon | RegExp::Var(_) | RegExp::Literal(_) => 1,
+            RegExp::Literals(vs) => 1,
+            RegExp::Concat(r1, r2) => 1 + r1.size().max(r2.size()),
+            RegExp::Seq(rs) => rs.iter().map(|r| r.size()).max().unwrap_or_default(),
+            RegExp::Alter(r1, r2) => 1 + r1.size().max(r2.size()),
+            RegExp::Star(r) => 1 + r.size(),
         }
     }
 
@@ -301,7 +291,8 @@ impl<Alphabet: Eq + Clone + Ord + Debug, Name: Eq + Clone + Ord + Debug> RegExp<
     ) -> Result<(Val<Alphabet>, &'a [Alphabet]), ParseErr<Alphabet>> {
         let mut stack = BTreeMap::new();
         let mut matched = 0;
-        self._parse_k(s, env, firsts, k, &mut stack, &mut matched)
+        let mut memo = BTreeMap::new();
+        self._parse_k(s, env, firsts, k, &mut stack, &mut matched, &mut memo)
     }
 
     pub fn _parse_k<'a>(
@@ -312,29 +303,44 @@ impl<Alphabet: Eq + Clone + Ord + Debug, Name: Eq + Clone + Ord + Debug> RegExp<
         k: usize,
         stack: &mut BTreeMap<Name, usize>,
         matched: &mut usize,
+        memo: &mut BTreeMap<
+            (Name, usize),
+            Result<(Val<Alphabet>, &'a [Alphabet]), ParseErr<Alphabet>>,
+        >,
     ) -> Result<(Val<Alphabet>, &'a [Alphabet]), ParseErr<Alphabet>> {
-        // if !s.is_empty() {
-        //     println!("matched so far: {:?} to match {:?}", matched, &s[0]);
-        // }
-        // println!("_parse_k\nre:{:?}\ns:{:?}", self.first(), s);
-        // println!("s:{:?}", &s[..10]);
-        match self {
+        let res = match self {
             RegExp::Epsilon => Ok((Val::Star(Vec::new()), s)),
             RegExp::Var(x) => {
-                // println!("var");
                 let re = env
                     .get(x)
                     .expect(&format!("name {:?} doesn't exist in env", x));
                 let nested_level = *stack.entry(x.clone()).or_default();
                 if nested_level == k {
-                    match re._parse_k(s, env, firsts, k, stack, matched) {
+                    *matched += 1;
+                    let res = if let Some(res) = memo.get(&(x.clone(), s.len())) {
+                        res.clone()
+                    } else {
+                        let res = re._parse_k(s, env, firsts, k, stack, matched, memo);
+                        memo.insert((x.clone(), s.len()), res.clone());
+                        res
+                    };
+                    let res = match res {
                         Ok((_, s)) => Ok((Val::Epsilon, s)),
                         Err(ParseErr::Abort(_)) => Err(ParseErr::Abort(Val::Epsilon)),
                         res @ Err(ParseErr::Invalid(_)) => res,
-                    }
+                    };
+                    *matched -= 1;
+                    res
                 } else {
                     *stack.get_mut(x).unwrap() += 1;
-                    let res = re._parse_k(s, env, firsts, k, stack, matched);
+                    let res = if let Some(res) = memo.get(&(x.clone(), s.len())) {
+                        res.clone()
+                    } else {
+                        let res = re._parse_k(s, env, firsts, k, stack, matched, memo);
+                        memo.insert((x.clone(), s.len()), res.clone());
+                        res
+                    };
+                    let res = re._parse_k(s, env, firsts, k, stack, matched, memo);
                     *stack.get_mut(x).unwrap() -= 1;
                     res
                 }
@@ -353,12 +359,21 @@ impl<Alphabet: Eq + Clone + Ord + Debug, Name: Eq + Clone + Ord + Debug> RegExp<
                         if let Some(x) = firsts.get(&s[0]) {
                             // println!("implicit call!");
                             let re = RegExp::Var(x.clone());
-                            let (val, s1) = re._parse_k(s, env, firsts, k, stack, matched)?;
-                            match RegExp::Literal(c.clone())._parse_k(s1, env, firsts, k, stack, matched) {
-                                Ok((val2, s2)) => Ok((Val::Concat(Box::new(val), Box::new(val2)), s2)),
-                                Err(ParseErr::Abort(x)) => Err(ParseErr::Abort(Val::Concat(Box::new(val), Box::new(x)))),
+                            *matched += 1;
+                            let (val, s1) = re._parse_k(s, env, firsts, k, stack, matched, memo)?;
+                            let res = match RegExp::Literal(c.clone())
+                                ._parse_k(s1, env, firsts, k, stack, matched, memo)
+                            {
+                                Ok((val2, s2)) => {
+                                    Ok((Val::Concat(Box::new(val), Box::new(val2)), s2))
+                                }
+                                Err(ParseErr::Abort(x)) => {
+                                    Err(ParseErr::Abort(Val::Concat(Box::new(val), Box::new(x))))
+                                }
                                 res @ Err(ParseErr::Invalid(_)) => res,
-                            }
+                            };
+                            *matched -= 1;
+                            res
                             // Err(ParseErr::Abort(Val::Epsilon))
                             // res
                             // match res {
@@ -392,7 +407,7 @@ impl<Alphabet: Eq + Clone + Ord + Debug, Name: Eq + Clone + Ord + Debug> RegExp<
                         } else {
                             if let Some(x) = firsts.get(&rest[0]) {
                                 let re = RegExp::Var(x.clone());
-                                let res = re._parse_k(s, env, firsts, k, stack, matched);
+                                let res = re._parse_k(s, env, firsts, k, stack, matched, memo);
                                 match res {
                                     Ok((val, rest_path)) => {
                                         lit_vals.push(val);
@@ -421,21 +436,25 @@ impl<Alphabet: Eq + Clone + Ord + Debug, Name: Eq + Clone + Ord + Debug> RegExp<
             RegExp::Concat(r1, r2) => {
                 // println!("concat");
                 // println!("concat1 {:?}", r1);
-                let (v1, s1) = r1._parse_k(s, env, firsts, k, stack, matched)?;
+                *matched += 1;
+                let (v1, s1) = r1._parse_k(s, env, firsts, k, stack, matched, memo)?;
                 // println!("concat2 {:?}", r1);
-                match r2._parse_k(s1, env, firsts, k, stack, matched) {
+                let res = match r2._parse_k(s1, env, firsts, k, stack, matched, memo) {
                     Ok((v2, s2)) => Ok((Val::Concat(Box::new(v1), Box::new(v2)), s2)),
                     Err(ParseErr::Abort(v2)) => {
                         Err(ParseErr::Abort(Val::Concat(Box::new(v1), Box::new(v2))))
                     }
                     res @ Err(ParseErr::Invalid(_)) => res,
-                }
+                };
+                *matched -= 1;
+                res
             }
             RegExp::Seq(rs) => {
                 let mut vals = Vec::new();
                 let mut rest = s;
+                *matched += 1;
                 for r in rs {
-                    match r._parse_k(rest, env, firsts, k, stack, matched) {
+                    match r._parse_k(rest, env, firsts, k, stack, matched, memo) {
                         Ok((v, s)) => {
                             vals.push(v);
                             rest = s;
@@ -449,30 +468,37 @@ impl<Alphabet: Eq + Clone + Ord + Debug, Name: Eq + Clone + Ord + Debug> RegExp<
                         }
                     }
                 }
+                *matched -= 1;
                 Ok((Val::Seq(vals), rest))
             }
             RegExp::Alter(r1, r2) => {
                 // println!("alter");
                 let cur = *matched;
                 // println!("alter1");
-                match r1._parse_k(s, env, firsts, k, stack, matched) {
+                *matched += 1;
+                let res = match r1._parse_k(s, env, firsts, k, stack, matched, memo) {
                     res @ Ok(..) | res @ Err(ParseErr::Abort(..)) => res,
                     Err(ParseErr::Invalid(msg)) => {
                         // println!("r1 invalid: {:?}", msg);
                         *matched = cur;
                         // println!("alter2");
-                        r2._parse_k(s, env, firsts, k, stack, matched)
+                        r2._parse_k(s, env, firsts, k, stack, matched, memo)
                     }
-                }
+                };
+                // let res = r2._parse_k(s, env, firsts, k, stack, matched, memo);
+                *matched -= 1;
+                res
             }
             RegExp::Star(r) => {
                 // println!("star");
-                match r.parse_star_k(s, env, firsts, k, stack, matched) {
-                Ok((vals, s)) => Ok((Val::Star(vals), s)),
-                Err(ParseErr::Abort(val)) => Err(ParseErr::Abort(val)),
-                Err(ParseErr::Invalid(s)) => Err(ParseErr::Invalid(s)),
-            }},
-        }
+                match r.parse_star_k(s, env, firsts, k, stack, matched, memo) {
+                    Ok((vals, s)) => Ok((Val::Star(vals), s)),
+                    Err(ParseErr::Abort(val)) => Err(ParseErr::Abort(val)),
+                    Err(ParseErr::Invalid(s)) => Err(ParseErr::Invalid(s)),
+                }
+            }
+        };
+        res
     }
 
     #[allow(dead_code)]
@@ -497,11 +523,16 @@ impl<Alphabet: Eq + Clone + Ord + Debug, Name: Eq + Clone + Ord + Debug> RegExp<
         k: usize,
         stack: &mut BTreeMap<Name, usize>,
         matched: &mut usize,
+        memo: &mut BTreeMap<
+            (Name, usize),
+            Result<(Val<Alphabet>, &'a [Alphabet]), ParseErr<Alphabet>>,
+        >,
     ) -> Result<(Vec<Val<Alphabet>>, &'a [Alphabet]), ParseErr<Alphabet>> {
         let mut acc = Vec::new();
+        *matched += 1;
         loop {
             let cur = *matched;
-            match self._parse_k(s, env, firsts, k, stack, matched) {
+            match self._parse_k(s, env, firsts, k, stack, matched, memo) {
                 Ok((val, new_s)) => {
                     s = new_s;
                     if acc.len() == k {
@@ -522,16 +553,17 @@ impl<Alphabet: Eq + Clone + Ord + Debug, Name: Eq + Clone + Ord + Debug> RegExp<
                 }
                 Err(ParseErr::Invalid(_)) => {
                     *matched = cur;
-                    break
-                },
+                    break;
+                }
             }
         }
+        *matched -= 1;
         Ok((acc, s))
     }
 }
 
 /// Result of parsing
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Val<Alphabet> {
     Epsilon,
     Literal(Alphabet),
