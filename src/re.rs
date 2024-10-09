@@ -340,6 +340,7 @@ impl<Alphabet: Eq + Clone + Ord + Debug, Name: Eq + Clone + Ord + Debug> RegExp<
                         memo.insert((x.clone(), s.len()), res.clone());
                         res
                     };
+                    memo.remove(&(x.clone(), s.len()));
                     *stack.get_mut(x).unwrap() -= 1;
                     res
                 }
