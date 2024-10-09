@@ -336,7 +336,6 @@ impl<Alphabet: Eq + Clone + Ord + Debug, Name: Eq + Clone + Ord + Debug> RegExp<
                         memo.insert((x.clone(), s.len()), res.clone());
                         res
                     };
-                    let res = re._parse_k(s, env, firsts, k, stack, memo);
                     *stack.get_mut(x).unwrap() -= 1;
                     res
                 }
