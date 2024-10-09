@@ -173,14 +173,14 @@ impl<Alphabet: Eq + Clone + Ord + Debug, Name: Eq + Clone + Ord + Debug> RegExp<
         if r1 == r2 {
             return r1;
         }
-        let (prefix, r1, r2) = Self::alter_prefix_acc(Arc::new(RegExp::Epsilon), r1, r2);
-        RegExp::concat(prefix, Arc::new(RegExp::Alter(r1, r2)))
+        // let (prefix, r1, r2) = Self::alter_prefix_acc(Arc::new(RegExp::Epsilon), r1, r2);
+        // RegExp::concat(prefix, Arc::new(RegExp::Alter(r1, r2)))
         // let (r1, r2, postfix) = Self::alter_post_acc(r1, r2, Arc::new(RegExp::Epsilon));
         // RegExp::concat(
         //     prefix,
         //     RegExp::concat(Arc::new(RegExp::Alter(r1, r2)), postfix),
         // )
-        // Arc::new(RegExp::Alter(r1, r2))
+        Arc::new(RegExp::Alter(r1, r2))
     }
 
     pub fn alter_prefix_acc(
