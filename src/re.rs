@@ -131,6 +131,9 @@ impl<Alphabet: Eq + Clone + Ord + Debug, Name: Eq + Clone + Ord + Debug> RegExp<
         match (r1.as_ref(), r2.as_ref()) {
             (Epsilon, _r) => r2,
             (_r, Epsilon) => r1,
+            (Concat(a, b), Concat(c, d)) => {
+                Arc::new(Concat(a.clone(), Self::concat(b.clone(), Self::concat(c.clone(), d.clone()))))
+            }
             // (Literal(l1), Literal(l2)) => Arc::new(Literals(vec![l1.clone(), l2.clone()])),
             // (Literal(l1), Literals(mut l2)) => {
             //     let mut res = vec![l1.clone()];
@@ -170,13 +173,14 @@ impl<Alphabet: Eq + Clone + Ord + Debug, Name: Eq + Clone + Ord + Debug> RegExp<
         if r1 == r2 {
             return r1;
         }
-        // let (prefix, r1, r2) = Self::alter_prefix_acc(Arc::new(RegExp::Epsilon), r1, r2);
+        let (prefix, r1, r2) = Self::alter_prefix_acc(Arc::new(RegExp::Epsilon), r1, r2);
+        RegExp::concat(prefix, Arc::new(RegExp::Alter(r1, r2)))
         // let (r1, r2, postfix) = Self::alter_post_acc(r1, r2, Arc::new(RegExp::Epsilon));
         // RegExp::concat(
         //     prefix,
         //     RegExp::concat(Arc::new(RegExp::Alter(r1, r2)), postfix),
         // )
-        Arc::new(RegExp::Alter(r1, r2))
+        // Arc::new(RegExp::Alter(r1, r2))
     }
 
     pub fn alter_prefix_acc(
