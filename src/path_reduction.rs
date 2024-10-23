@@ -21,6 +21,9 @@ pub struct PathReducer<BlockID, FunID> {
 
 impl<BlockID: Eq + Clone + Ord+ Debug, FunID: Eq + Clone + Ord + Debug> PathReducer<BlockID, FunID> {
     pub fn reduce(&self, mut path: &[BlockID], _cfg: FunID) -> Vec<BlockID> {
+        if self.k == 0 {
+            return self.simple_reduce(&mut path);
+        }
         let unreduced = path;
         if path.is_empty() {
             return Vec::new();
