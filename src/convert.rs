@@ -35,6 +35,13 @@ impl<Alphabet, Name> Node<Alphabet, Name> {
             Node::Extern => RegExp::Epsilon,
         }
     }
+
+    pub fn to_block_id(self) -> Alphabet {
+        match self {
+            Node::Literal(block_id) => block_id,
+            _ => unreachable!(),
+        }
+    }
 }
 
 impl<Alphabet: Eq + Clone + Ord + Debug, Name: Eq + Clone + Ord + Debug> GNFA<Alphabet, Name> {
