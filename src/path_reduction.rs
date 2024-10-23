@@ -21,8 +21,11 @@ pub struct PathReducer<BlockID, FunID> {
 
 impl<BlockID: Eq + Clone + Ord+ Debug, FunID: Eq + Clone + Ord + Debug> PathReducer<BlockID, FunID> {
     pub fn reduce(&self, mut path: &[BlockID], _cfg: FunID) -> Vec<BlockID> {
-        if self.k == 0 {
-            return self.simple_reduce(&mut path);
+        if self.k == 42 {
+            // println!("reducing path {:?}", path);
+            let reduced = self.simple_reduce(&mut path);
+            // println!("reduced path {:?}", reduced);
+            return reduced;
         }
         let unreduced = path;
         if path.is_empty() {
@@ -75,9 +78,11 @@ impl<BlockID: Eq + Clone + Ord+ Debug, FunID: Eq + Clone + Ord + Debug> PathRedu
 
     fn simple_reduce(&self, mut path: &[BlockID]) -> Vec<BlockID> {
         let mut res = Vec::new();
-        let mut stack = BTreeSet::new();
         while !path.is_empty() {
-            res.append(&mut self.simple_reduce_one_fun(&mut path, &mut stack, false));
+            let mut stack = BTreeSet::new();
+            let mut reduced = self.simple_reduce_one_fun(&mut path, &mut stack, false);
+            // println!("reduced one {:?}", reduced);
+            res.append(&mut reduced);
         }
         res
     }
@@ -97,11 +102,26 @@ impl<BlockID: Eq + Clone + Ord+ Debug, FunID: Eq + Clone + Ord + Debug> PathRedu
         } else {
             return buffer;
         };
+        if skip {
+            // println!("skipping {:?}", first);
+        } else {
+            // println!("reducing {:?}", first);
+        }
         // read the first block
         *path = &path[1..];
-        // push the first block to the stack
         stack.insert(first.clone());
-        let lasts = self.lasts.get(&first).expect(&format!("failed to get last blocks for first block {:?}", first));
+        if !skip {
+            buffer.push(first.clone());
+            loop_stack.insert(first.clone(), 0);
+        }
+        let lasts = self.get_last_blocks(&first);
+        // println!("first {:?} lasts {:?}", first, lasts);
+        if lasts.contains(&first) {
+            // the function contains only one block
+            // reach the end of the call
+            stack.remove(&first);
+            return buffer;
+        }
         loop {
             if let Some(block) = path.first().cloned() {
                 // block is the start of a new function
@@ -115,8 +135,8 @@ impl<BlockID: Eq + Clone + Ord+ Debug, FunID: Eq + Clone + Ord + Debug> PathRedu
                     }
                 } else if lasts.contains(&block) { // we reach the end of the current function call
                     *path = &path[1..];
+                    stack.remove(&first);
                     if !skip {
-                        stack.remove(&block);
                         // since we return immediately, we don't need to update the loop stack
                         buffer.push(block.clone());
                     }
@@ -129,7 +149,9 @@ impl<BlockID: Eq + Clone + Ord+ Debug, FunID: Eq + Clone + Ord + Debug> PathRedu
                     // appears in the buffer at `last_off`
                     if let Some(&last_off) = loop_stack.get(&block) {
                         // remove the blocks starting from `last_off`
+                        // println!("before drain {:?}", buffer);
                         buffer.drain(last_off..);
+                        // println!("after drain {:?}", buffer);
                         loop_stack.retain(|_, &mut off| off < last_off);
                     }
                     *path = &path[1..];
