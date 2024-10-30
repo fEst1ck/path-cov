@@ -79,7 +79,7 @@ impl<BlockID: Eq + Clone + Ord+ Debug, FunID: Eq + Clone + Ord + Debug> PathRedu
     fn simple_reduce(&self, mut path: &[BlockID]) -> Vec<BlockID> {
         let mut res = Vec::new();
         while !path.is_empty() {
-            let mut stack = BTreeSet::new();
+            let mut stack = vec![];
             let mut reduced = self.simple_reduce_one_fun(&mut path, &mut stack, false);
             // println!("reduced one {:?}", reduced);
             res.append(&mut reduced);
@@ -91,7 +91,7 @@ impl<BlockID: Eq + Clone + Ord+ Debug, FunID: Eq + Clone + Ord + Debug> PathRedu
         self.lasts.get(block).expect(&format!("failed to get last blocks for block {:?}", block))
     }
 
-    fn simple_reduce_one_fun(&self, path: &mut &[BlockID], stack: &mut BTreeSet<BlockID>, skip: bool) -> Vec<BlockID> {
+    fn simple_reduce_one_fun(&self, path: &mut &[BlockID], stack: &mut Vec<BlockID>, skip: bool) -> Vec<BlockID> {
         // holds the reduced path of the current function call (including all sub-calls)
         let mut buffer = Vec::new();
         // maps a block to where it last appears in the buffer
@@ -109,7 +109,7 @@ impl<BlockID: Eq + Clone + Ord+ Debug, FunID: Eq + Clone + Ord + Debug> PathRedu
         }
         // read the first block
         *path = &path[1..];
-        stack.insert(first.clone());
+        stack.push(first.clone());
         if !skip {
             buffer.push(first.clone());
             loop_stack.insert(first.clone(), 0);
@@ -119,7 +119,11 @@ impl<BlockID: Eq + Clone + Ord+ Debug, FunID: Eq + Clone + Ord + Debug> PathRedu
         if lasts.contains(&first) {
             // the function contains only one block
             // reach the end of the call
-            stack.remove(&first);
+            while let Some(last) = stack.pop() {
+                if last == first {
+                    break;
+                }
+            }
             return buffer;
         }
         loop {
@@ -127,7 +131,7 @@ impl<BlockID: Eq + Clone + Ord+ Debug, FunID: Eq + Clone + Ord + Debug> PathRedu
                 // block is the start of a new function
                 if self.firsts.contains_key(&block) {
                     // the function is on stack
-                    if skip || stack.contains(&block) {
+                    if skip || stack.iter().rev().find(|frame| frame == &&block).is_some() {
                         self.simple_reduce_one_fun(path, stack, true);
                     } else {
                         // reduce the path of this function call
@@ -135,7 +139,12 @@ impl<BlockID: Eq + Clone + Ord+ Debug, FunID: Eq + Clone + Ord + Debug> PathRedu
                     }
                 } else if lasts.contains(&block) { // we reach the end of the current function call
                     *path = &path[1..];
-                    stack.remove(&first);
+                    // stack.remove(&first);
+                    while let Some(last) = stack.pop() {
+                        if last == first {
+                            break;
+                        }
+                    }
                     if !skip {
                         // since we return immediately, we don't need to update the loop stack
                         buffer.push(block.clone());
@@ -150,7 +159,8 @@ impl<BlockID: Eq + Clone + Ord+ Debug, FunID: Eq + Clone + Ord + Debug> PathRedu
                     if let Some(&last_off) = loop_stack.get(&block) {
                         // remove the blocks starting from `last_off`
                         // println!("before drain {:?}", buffer);
-                        buffer.drain(last_off..);
+                        // buffer.drain(last_off..);
+                        buffer.truncate(last_off);
                         // println!("after drain {:?}", buffer);
                         loop_stack.retain(|_, &mut off| off < last_off);
                     }
