@@ -52,13 +52,13 @@ impl<BlockID: Eq + Clone + Ord+ Debug, FunID: Eq + Clone + Ord + Debug> PathRedu
                         match on_error.as_str() {
                             FULL_PATH => {
                                 if env::var(PATH_REDUCTION_DEBUG).is_ok() {
-                                    println!("invalid path: {:?}", unreduced);
+                                    println!("invalid path");
                                 }
                                 return unreduced.to_vec();
                             }
                             EMPTY_PATH => {
                                 if env::var(PATH_REDUCTION_DEBUG).is_ok() {
-                                    println!("invalid path: {:?}", unreduced);
+                                    println!("invalid path");
                                 }
                                 return vec![];
                             }
