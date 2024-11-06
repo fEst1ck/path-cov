@@ -80,8 +80,9 @@ impl<BlockID: Eq + Clone + Ord+ Debug, FunID: Eq + Clone + Ord + Debug> PathRedu
         let mut res = Vec::new();
         while !path.is_empty() {
             let mut stack = vec![];
-            let mut reduced = self.simple_reduce_one_fun(&mut path, &mut stack, false);
-            // println!("reduced one {:?}", reduced);
+            let (mut reduced, mut unreduced) = self.simple_reduce_one_fun(&mut path, &mut stack, false);
+            println!("reduced one {:?}", reduced);
+            println!("unreduced one {:?}", unreduced);
             res.append(&mut reduced);
         }
         res
@@ -91,7 +92,8 @@ impl<BlockID: Eq + Clone + Ord+ Debug, FunID: Eq + Clone + Ord + Debug> PathRedu
         self.lasts.get(block).expect(&format!("failed to get last blocks for block {:?}", block))
     }
 
-    fn simple_reduce_one_fun(&self, path: &mut &[BlockID], stack: &mut Vec<BlockID>, skip: bool) -> Vec<BlockID> {
+    fn simple_reduce_one_fun(&self, path: &mut &[BlockID], stack: &mut Vec<BlockID>, skip: bool) -> (Vec<BlockID>, Vec<BlockID>) {
+        let mut unreduced = Vec::new();
         // holds the reduced path of the current function call (including all sub-calls)
         let mut buffer = Vec::new();
         // maps a block to where it last appears in the buffer
@@ -100,7 +102,7 @@ impl<BlockID: Eq + Clone + Ord+ Debug, FunID: Eq + Clone + Ord + Debug> PathRedu
         let first = if let Some(first) = path.first() {
             first.clone()
         } else {
-            return buffer;
+            return (buffer, unreduced);
         };
         if skip {
             // println!("skipping {:?}", first);
@@ -108,6 +110,7 @@ impl<BlockID: Eq + Clone + Ord+ Debug, FunID: Eq + Clone + Ord + Debug> PathRedu
             // println!("reducing {:?}", first);
         }
         // read the first block
+        unreduced.push(first.clone());
         *path = &path[1..];
         stack.push(first.clone());
         if !skip {
@@ -124,7 +127,7 @@ impl<BlockID: Eq + Clone + Ord+ Debug, FunID: Eq + Clone + Ord + Debug> PathRedu
                     break;
                 }
             }
-            return buffer;
+            return (buffer, unreduced);
         }
         loop {
             if let Some(block) = path.first().cloned() {
@@ -138,6 +141,7 @@ impl<BlockID: Eq + Clone + Ord+ Debug, FunID: Eq + Clone + Ord + Debug> PathRedu
                         buffer.append(&mut self.simple_reduce_one_fun(path, stack, skip));
                     }
                 } else if lasts.contains(&block) { // we reach the end of the current function call
+                    unreduced.push(block.clone());
                     *path = &path[1..];
                     // stack.remove(&first);
                     while let Some(last) = stack.pop() {
@@ -152,6 +156,7 @@ impl<BlockID: Eq + Clone + Ord+ Debug, FunID: Eq + Clone + Ord + Debug> PathRedu
                     return buffer;
                 } else { // another block in the current function call
                     if skip {
+                        unreduced.push(block.clone());
                         *path = &path[1..];
                         continue;
                     }
@@ -164,13 +169,14 @@ impl<BlockID: Eq + Clone + Ord+ Debug, FunID: Eq + Clone + Ord + Debug> PathRedu
                         // println!("after drain {:?}", buffer);
                         loop_stack.retain(|_, &mut off| off < last_off);
                     }
+                    unreduced.push(block.clone());
                     *path = &path[1..];
                     buffer.push(block.clone());
                     loop_stack.insert(block.clone(), buffer.len() - 1);
                 }
             } else {
                 // the current function call aborts
-                return buffer;
+                return (buffer, unreduced);
             }
         }
     }
