@@ -150,7 +150,7 @@ impl<BlockID: Eq + Clone + Ord+ Debug, FunID: Eq + Clone + Ord + Debug> PathRedu
                     if let Some(&last_off) = loop_stack.get(&block) {
                         // remove the blocks starting from `last_off`
                         // println!("before drain {:?}", buffer);
-                        buffer.drain(last_off..);
+                        buffer.truncate(last_off);
                         // println!("after drain {:?}", buffer);
                         loop_stack.retain(|_, &mut off| off < last_off);
                     }
