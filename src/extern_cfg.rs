@@ -1,7 +1,7 @@
 //! Structures of external C CFGs, and utilities for converting them to internal CFGs
 
 use std::{
-    collections::{BTreeMap, BTreeSet}, iter::once_with, os::raw::{c_char, c_int}, slice
+    collections::{HashMap, HashSet}, iter::once_with, os::raw::{c_char, c_int}, slice
 };
 
 use crate::{convert::Node, intern_cfg::CFG};
@@ -51,11 +51,11 @@ pub struct TopLevel {
 /// Requires: `top_level` is not NULL
 pub unsafe fn process_top_level(
     top_level: *const TopLevel,
-) -> BTreeMap<FunID, CFG<BlockID, FunID>> {
+) -> HashMap<FunID, CFG<BlockID, FunID>> {
     let top_level = top_level.as_ref().expect("top level");
     let cfgs = slice::from_raw_parts(top_level.cfg_arr, top_level.cfg_size as usize);
     let blocks = slice::from_raw_parts(top_level.block_arr, top_level.block_size as usize);
-    let mut block_id_to_entry = BTreeMap::new();
+    let mut block_id_to_entry = HashMap::new();
     for (i, block) in blocks.iter().enumerate() {
         if !block.is_null() {
             let block_entry = &**block;
@@ -65,7 +65,7 @@ pub unsafe fn process_top_level(
     process_cfgs(cfgs, &block_id_to_entry)
 }
 
-fn process_cfgs(cfgs: &[CFGEntry], blocks: &BTreeMap<BlockID, &BlockEntry>) -> BTreeMap<FunID, CFG<BlockID, FunID>> {
+fn process_cfgs(cfgs: &[CFGEntry], blocks: &HashMap<BlockID, &BlockEntry>) -> HashMap<FunID, CFG<BlockID, FunID>> {
     cfgs.iter()
         .enumerate()
         .map(|(fun_id, cfg_entry)| (fun_id as FunID, process_cfg(cfg_entry, blocks)))
@@ -73,7 +73,7 @@ fn process_cfgs(cfgs: &[CFGEntry], blocks: &BTreeMap<BlockID, &BlockEntry>) -> B
 }
 
 /// Returns the control flow graph of the given CFGEntry
-fn process_cfg(cfg: &CFGEntry, blocks: &BTreeMap<BlockID, &BlockEntry>) -> CFG<BlockID, FunID> {
+fn process_cfg(cfg: &CFGEntry, blocks: &HashMap<BlockID, &BlockEntry>) -> CFG<BlockID, FunID> {
     // println!("cfg {:?}\n blocks {:?}", cfg, blocks);
     let entry_block_id = cfg.entry;
     let exit_block_id = cfg.exit;
@@ -84,9 +84,9 @@ fn process_cfg(cfg: &CFGEntry, blocks: &BTreeMap<BlockID, &BlockEntry>) -> CFG<B
 
 /// Given the block entries indexed by `BlockID`,
 /// returns the control flow graph with root `entry`
-fn get_cfg_with_root(entry: BlockID, exit: BlockID, blocks: &BTreeMap<BlockID, &BlockEntry>) -> CFG<BlockID, FunID> {
+fn get_cfg_with_root(entry: BlockID, exit: BlockID, blocks: &HashMap<BlockID, &BlockEntry>) -> CFG<BlockID, FunID> {
     let mut graph = Graph::new();
-    let mut block_id_to_node_idx = BTreeMap::new();
+    let mut block_id_to_node_idx = HashMap::new();
     // add node to graph for each block
     for block_id in DFS::new(blocks, entry).chain(once_with(|| exit)) {
         let block_entry = blocks.get(&block_id).expect("invalid block id");
@@ -110,7 +110,7 @@ fn get_cfg_with_root(entry: BlockID, exit: BlockID, blocks: &BTreeMap<BlockID, &
     // add edges to the graph
     for block_id in DFS::new(blocks, entry as BlockID) {
         let node_idx = *block_id_to_node_idx.get(&block_id).unwrap();
-        for succ_block in get_successors(blocks, block_id).iter().cloned().collect::<BTreeSet<_>>().into_iter() {
+        for succ_block in get_successors(blocks, block_id).iter().cloned().collect::<HashSet<_>>().into_iter() {
             let succ_node_idx = *block_id_to_node_idx.get(&succ_block).unwrap();
             graph.add_edge(node_idx, succ_node_idx, ());
         }
@@ -124,7 +124,7 @@ fn get_cfg_with_root(entry: BlockID, exit: BlockID, blocks: &BTreeMap<BlockID, &
 
 /// Given the block entries indexed by `BlockID`,
 /// returns the id of the successor blocks of the given block
-fn get_successors<'a>(blocks: &'a BTreeMap<BlockID, &'a BlockEntry>, block_id: BlockID) -> &'a [BlockID] {
+fn get_successors<'a>(blocks: &'a HashMap<BlockID, &'a BlockEntry>, block_id: BlockID) -> &'a [BlockID] {
     let block_entry = blocks.get(&block_id).expect("invalid block id");
     unsafe {
         slice::from_raw_parts(
@@ -137,16 +137,16 @@ fn get_successors<'a>(blocks: &'a BTreeMap<BlockID, &'a BlockEntry>, block_id: B
 /// State for DFS traversal of the CFG
 struct DFS<'a> {
     to_visit: Vec<BlockID>,
-    visited: BTreeSet<BlockID>,
-    blocks: &'a BTreeMap<BlockID, &'a BlockEntry>,
+    visited: HashSet<BlockID>,
+    blocks: &'a HashMap<BlockID, &'a BlockEntry>,
 }
 
 impl<'a> DFS<'a> {
     /// Traverse the CFG with root `entry`
-    fn new(blocks: &'a BTreeMap<BlockID, &BlockEntry>, entry: BlockID) -> Self {
+    fn new(blocks: &'a HashMap<BlockID, &BlockEntry>, entry: BlockID) -> Self {
         Self {
             to_visit: vec![entry],
-            visited: BTreeSet::new(),
+            visited: HashSet::new(),
             blocks,
         }
     }

@@ -1,4 +1,4 @@
-use std::{collections::{BTreeMap, BTreeSet}, env, fmt::Debug};
+use std::{collections::{HashMap, HashSet}, env, fmt::Debug, hash::Hash};
 
 use crate::{
     convert::GNFA,
@@ -13,13 +13,13 @@ const FULL_PATH : &'static str = "FULL_PATH";
 const EMPTY_PATH : &'static str = "EMPTY_PATH";
 
 pub struct PathReducer<BlockID, FunID> {
-    res: BTreeMap<FunID, RegExp<BlockID, FunID>>,
-    firsts: BTreeMap<BlockID, FunID>,
-    lasts: BTreeMap<BlockID, BTreeSet<BlockID>>,
+    res: HashMap<FunID, RegExp<BlockID, FunID>>,
+    firsts: HashMap<BlockID, FunID>,
+    lasts: HashMap<BlockID, HashSet<BlockID>>,
     k: usize,
 }
 
-impl<BlockID: Eq + Clone + Ord+ Debug, FunID: Eq + Clone + Ord + Debug> PathReducer<BlockID, FunID> {
+impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash + Debug> PathReducer<BlockID, FunID> {
     pub fn reduce(&self, mut path: &[BlockID], _cfg: FunID) -> Vec<BlockID> {
         if self.k == 42 {
             // println!("reducing path {:?}", path);
@@ -87,7 +87,7 @@ impl<BlockID: Eq + Clone + Ord+ Debug, FunID: Eq + Clone + Ord + Debug> PathRedu
         res
     }
 
-    fn get_last_blocks(&self, block: &BlockID) -> &BTreeSet<BlockID> {
+    fn get_last_blocks(&self, block: &BlockID) -> &HashSet<BlockID> {
         self.lasts.get(block).expect(&format!("failed to get last blocks for block {:?}", block))
     }
 
@@ -96,7 +96,7 @@ impl<BlockID: Eq + Clone + Ord+ Debug, FunID: Eq + Clone + Ord + Debug> PathRedu
         let mut buffer = Vec::new();
         // maps a block to where it last appears in the buffer
         // this local to this function call
-        let mut loop_stack: BTreeMap<BlockID, usize> = BTreeMap::new();
+        let mut loop_stack: HashMap<BlockID, usize> = HashMap::new();
         let first = if let Some(first) = path.first() {
             first.clone()
         } else {
@@ -176,10 +176,10 @@ impl<BlockID: Eq + Clone + Ord+ Debug, FunID: Eq + Clone + Ord + Debug> PathRedu
 }
 
 impl PathReducer<BlockID, FunID> {
-    pub fn from_cfgs(cfgs: BTreeMap<FunID, CFG<BlockID, FunID>>, k: usize) -> Self {
+    pub fn from_cfgs(cfgs: HashMap<FunID, CFG<BlockID, FunID>>, k: usize) -> Self {
         let lasts = last_map(&cfgs);
         let res = convert_cfgs(cfgs);
-        let mut firsts = BTreeMap::new();
+        let mut firsts = HashMap::new();
         for (fun_id, re) in res.iter() {
             let first = re.first();
             let old = firsts.insert(first, fun_id.clone());
@@ -192,8 +192,8 @@ impl PathReducer<BlockID, FunID> {
 }
 
 fn convert_cfgs(
-    cfgs: BTreeMap<FunID, CFG<BlockID, FunID>>,
-) -> BTreeMap<FunID, RegExp<BlockID, FunID>> {
+    cfgs: HashMap<FunID, CFG<BlockID, FunID>>,
+) -> HashMap<FunID, RegExp<BlockID, FunID>> {
     cfgs.into_iter()
         // .par_bridge()
         .map(|(fun_id, cfg)| {
@@ -209,8 +209,8 @@ fn convert_cfgs(
 
 /// Returns a map from the first block of a function to the set of exit blocks
 fn last_map(
-    cfgs: &BTreeMap<FunID, CFG<BlockID, FunID>>,
-) -> BTreeMap<BlockID, BTreeSet<BlockID>> {
+    cfgs: &HashMap<FunID, CFG<BlockID, FunID>>,
+) -> HashMap<BlockID, HashSet<BlockID>> {
     cfgs.iter()
         // .par_bridge()
         .map(|(_fun_id, cfg)| {

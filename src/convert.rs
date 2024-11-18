@@ -10,6 +10,7 @@ use petgraph::graph::{Graph, NodeIndex};
 use petgraph::visit::{EdgeRef, IntoEdges};
 use petgraph::Direction::{Incoming, Outgoing};
 use petgraph::dot::Dot;
+use std::hash::Hash;
 
 /// Generalized NFA where the transitions are `RegExp<Alphabet, Name>`
 #[derive(Debug)]
@@ -44,7 +45,7 @@ impl<Alphabet, Name> Node<Alphabet, Name> {
     }
 }
 
-impl<Alphabet: Eq + Clone + Ord + Debug, Name: Eq + Clone + Ord + Debug> GNFA<Alphabet, Name> {
+impl<Alphabet: Eq + Clone + Hash + Debug, Name: Eq + Clone + Hash + Debug> GNFA<Alphabet, Name> {
     /// Construct a `GNFA` corresponding to cfg `g`.
     ///
     /// The language accepted is the set of execution paths of `g`.
