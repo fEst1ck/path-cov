@@ -1,8 +1,8 @@
 //! Regular expressions
 
 use core::panic;
+use rustc_hash::FxHashMap;
 use std::{
-    collections::HashMap,
     fmt::Debug,
     sync::Arc,
     hash::Hash,
@@ -250,7 +250,7 @@ impl<Alphabet: Eq + Clone + Hash + Debug, Name: Eq + Clone + Hash + Debug> RegEx
     pub fn parse_inf<'a>(
         &self,
         s: &'a [Alphabet],
-        env: &HashMap<Name, RegExp<Alphabet, Name>>,
+        env: &FxHashMap<Name, RegExp<Alphabet, Name>>,
     ) -> Option<(Val<Alphabet>, &'a [Alphabet])> {
         match self {
             RegExp::Epsilon => todo!(),
@@ -290,23 +290,23 @@ impl<Alphabet: Eq + Clone + Hash + Debug, Name: Eq + Clone + Hash + Debug> RegEx
     pub fn parse_k<'a>(
         &self,
         s: &'a [Alphabet],
-        env: &HashMap<Name, RegExp<Alphabet, Name>>,
-        firsts: &HashMap<Alphabet, Name>,
+        env: &FxHashMap<Name, RegExp<Alphabet, Name>>,
+        firsts: &FxHashMap<Alphabet, Name>,
         k: usize,
     ) -> Result<(Val<Alphabet>, &'a [Alphabet]), ParseErr<Alphabet>> {
-        let mut stack = HashMap::new();
-        let mut memo = HashMap::new();
+        let mut stack = FxHashMap::default();
+        let mut memo = FxHashMap::default();
         self._parse_k(s, env, firsts, k, &mut stack, &mut memo)
     }
 
     pub fn _parse_k<'a>(
         &self,
         s: &'a [Alphabet],
-        env: &HashMap<Name, RegExp<Alphabet, Name>>,
-        firsts: &HashMap<Alphabet, Name>,
+        env: &FxHashMap<Name, RegExp<Alphabet, Name>>,
+        firsts: &FxHashMap<Alphabet, Name>,
         k: usize,
-        stack: &mut HashMap<Name, usize>,
-        memo: &mut HashMap<
+        stack: &mut FxHashMap<Name, usize>,
+        memo: &mut FxHashMap<
             (Name, usize),
             Result<(Val<Alphabet>, &'a [Alphabet]), ParseErr<Alphabet>>,
         >,
@@ -495,7 +495,7 @@ impl<Alphabet: Eq + Clone + Hash + Debug, Name: Eq + Clone + Hash + Debug> RegEx
     fn parse_star_inf<'a>(
         &self,
         mut s: &'a [Alphabet],
-        env: &HashMap<Name, Self>,
+        env: &FxHashMap<Name, Self>,
     ) -> (Vec<Val<Alphabet>>, &'a [Alphabet]) {
         let mut acc = Vec::new();
         while let Some((val, new_s)) = self.parse_inf(s, env) {
@@ -508,11 +508,11 @@ impl<Alphabet: Eq + Clone + Hash + Debug, Name: Eq + Clone + Hash + Debug> RegEx
     fn parse_star_k<'a>(
         &self,
         mut s: &'a [Alphabet],
-        env: &HashMap<Name, Self>,
-        firsts: &HashMap<Alphabet, Name>,
+        env: &FxHashMap<Name, Self>,
+        firsts: &FxHashMap<Alphabet, Name>,
         k: usize,
-        stack: &mut HashMap<Name, usize>,
-        memo: &mut HashMap<
+        stack: &mut FxHashMap<Name, usize>,
+        memo: &mut FxHashMap<
             (Name, usize),
             Result<(Val<Alphabet>, &'a [Alphabet]), ParseErr<Alphabet>>,
         >,
@@ -600,7 +600,7 @@ mod tests {
             )),
         );
         let s = vec![1, 2, 1, 2, 1, 2, 1, 3];
-        let (v, _) = re.parse_inf(&s, &HashMap::new()).unwrap();
+        let (v, _) = re.parse_inf(&s, &FxHashMap::new()).unwrap();
         let k = 2;
         let reduced = v.reduce(k);
         assert!(reduced == vec![1, 2, 1, 2, 1, 3]);
@@ -623,7 +623,7 @@ mod tests {
         let s = vec![1, 2, 1, 2, 1, 2, 1, 3];
         let k = 2;
         let (v, _) = re
-            .parse_k(&s, &HashMap::new(), &HashMap::new(), k)
+            .parse_k(&s, &FxHashMap::new(), &FxHashMap::new(), k)
             .unwrap();
         let reduced = v.into_vec();
         assert!(reduced == vec![1, 2, 1, 2, 1, 3]);
@@ -637,7 +637,7 @@ mod tests {
             RegExp::concat(RegExp::literal(1), RegExp::literal(3)),
         );
         let s = vec![1, 2, 1, 2, 1, 2, 1, 3];
-        let (v, _) = re.parse_inf(&s, &HashMap::new()).unwrap();
+        let (v, _) = re.parse_inf(&s, &FxHashMap::new()).unwrap();
         let k = 2;
         let reduced = v.reduce(k);
         assert!(reduced == vec![1, 2, 1, 2, 1, 3]);
@@ -652,7 +652,7 @@ mod tests {
         );
         let s = vec![1, 2, 1, 2, 1, 2, 1, 3];
         let k = 2;
-        let (v, _) = re.parse_k(&s, &HashMap::new(), k).unwrap();
+        let (v, _) = re.parse_k(&s, &FxHashMap::new(), k).unwrap();
         let reduced = v.into_vec();
         assert!(reduced == vec![1, 2, 1, 2, 1, 3]);
     }
@@ -729,7 +729,7 @@ mod tests {
             ),
         );
         let path = vec![9, 11, 13, 15, 17, 18, 22, 0, 2, 3];
-        let mut env = HashMap::new();
+        let mut env = FxHashMap::new();
         env.insert(0, re0);
         let res = re.parse_k(&path, &env, 3);
         println!("{:?}", res);
@@ -744,7 +744,7 @@ mod tests {
             RegExp::literal(3),
         ]);
         let s = vec![1, 1, 1, 2, 3, 3, 3];
-        let mut env = HashMap::new();
+        let mut env = FxHashMap::new();
         env.insert(0, re.clone());
         let k = 1;
         let (v, _) = re.parse_k(&s, &env, k).unwrap();
