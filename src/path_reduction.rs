@@ -80,9 +80,8 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
         let mut res = Vec::new();
         while !path.is_empty() {
             let mut stack = vec![];
-            let mut reduced = self.simple_reduce_one_fun(&mut path, &mut stack, false);
+            self.simple_reduce_one_fun(&mut path, &mut stack, false, &mut res);
             // println!("reduced one {:?}", reduced);
-            res.append(&mut reduced);
         }
         res
     }
@@ -91,7 +90,7 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
         self.lasts.get(block).expect(&format!("failed to get last blocks for block {:?}", block))
     }
 
-    fn simple_reduce_one_fun(&self, path: &mut &[BlockID], stack: &mut Vec<BlockID>, skip: bool) -> Vec<BlockID> {
+    fn simple_reduce_one_fun(&self, path: &mut &[BlockID], stack: &mut Vec<BlockID>, skip: bool, out: &mut Vec<BlockID>) {
         // holds the reduced path of the current function call (including all sub-calls)
         let mut buffer = Vec::new();
         // maps a block to where it last appears in the buffer
@@ -100,7 +99,7 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
         let first = if let Some(first) = path.first() {
             first.clone()
         } else {
-            return buffer;
+            return;
         };
         if skip {
             // println!("skipping {:?}", first);
@@ -124,7 +123,9 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
                     break;
                 }
             }
-            return buffer;
+            out.append(&mut buffer);
+            return;
+            // return buffer;
         }
         loop {
             if let Some(block) = path.first().cloned() {
@@ -132,10 +133,11 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
                 if self.firsts.contains_key(&block) {
                     // the function is on stack
                     if skip || stack.iter().rev().find(|frame| frame == &&block).is_some() {
-                        self.simple_reduce_one_fun(path, stack, true);
+                        self.simple_reduce_one_fun(path, stack, true, out);
                     } else {
                         // reduce the path of this function call
-                        buffer.append(&mut self.simple_reduce_one_fun(path, stack, skip));
+                        // buffer.append(&mut self.simple_reduce_one_fun(path, stack, skip));
+                        self.simple_reduce_one_fun(path, stack, skip, &mut buffer);
                     }
                 } else if lasts.contains(&block) { // we reach the end of the current function call
                     *path = &path[1..];
@@ -149,7 +151,9 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
                         // since we return immediately, we don't need to update the loop stack
                         buffer.push(block.clone());
                     }
-                    return buffer;
+                    out.append(&mut buffer);
+                    return;
+                    // return buffer;
                 } else { // another block in the current function call
                     if skip {
                         *path = &path[1..];
@@ -169,7 +173,9 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
                 }
             } else {
                 // the current function call aborts
-                return buffer;
+                out.append(&mut buffer);
+                return;
+                // return buffer;
             }
         }
     }
