@@ -102,11 +102,6 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
         } else {
             return;
         };
-        if skip {
-            // println!("skipping {:?}", first);
-        } else {
-            // println!("reducing {:?}", first);
-        }
         // read the first block
         *path = &path[1..];
         stack.push(first.clone());
@@ -124,7 +119,9 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
                     break;
                 }
             }
-            out.append(&mut buffer);
+            if !skip {
+                out.append(&mut buffer);
+            }
             return;
             // return buffer;
         }
@@ -152,7 +149,9 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
                         // since we return immediately, we don't need to update the loop stack
                         buffer.push(block.clone());
                     }
-                    out.append(&mut buffer);
+                    if !skip {  
+                        out.append(&mut buffer);
+                    }
                     return;
                     // return buffer;
                 } else { // another block in the current function call
@@ -174,7 +173,9 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
                 }
             } else {
                 // the current function call aborts
-                out.append(&mut buffer);
+                if !skip {
+                    out.append(&mut buffer);
+                }
                 return;
                 // return buffer;
             }
