@@ -6,7 +6,7 @@ use std::{
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{convert::Node, intern_cfg::CFG};
-use petgraph::graph::Graph;
+use petgraph::graph::{Graph, NodeIndex};
 
 
 pub type FunID = c_int;
@@ -84,7 +84,7 @@ fn process_cfg(cfg: &CFGEntry, blocks: &FxHashMap<BlockID, &BlockEntry>) -> CFG<
 
 /// Given the block entries indexed by `BlockID`,
 /// returns the control flow graph with root `entry`
-fn get_cfg_with_root(entry: BlockID, exit: BlockID, blocks: &FxHashMap<BlockID, &BlockEntry>) -> CFG<BlockID, FunID> {
+fn get_cfg_with_root(entry: BlockID, _exit: BlockID, blocks: &FxHashMap<BlockID, &BlockEntry>) -> CFG<BlockID, FunID> {
     let mut graph = Graph::new();
     let mut block_id_to_node_idx = FxHashMap::default();
     // add node to graph for each block
@@ -117,7 +117,7 @@ fn get_cfg_with_root(entry: BlockID, exit: BlockID, blocks: &FxHashMap<BlockID, 
     }
     CFG {
         entry: *block_id_to_node_idx.get(&entry).expect("entry block idx"),
-        exit: *block_id_to_node_idx.get(&exit).expect("exit block idx"),
+        exit: NodeIndex::new(0),
         graph,
     }
 }
