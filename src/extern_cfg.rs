@@ -88,7 +88,7 @@ fn get_cfg_with_root(entry: BlockID, exit: BlockID, blocks: &FxHashMap<BlockID, 
     let mut graph = Graph::new();
     let mut block_id_to_node_idx = FxHashMap::default();
     // add node to graph for each block
-    for block_id in DFS::new(blocks, entry).chain(once_with(|| exit)) {
+    for block_id in DFS::new(blocks, entry) {
         let block_entry = blocks.get(&block_id).expect("invalid block id");
         let node_weight = if block_entry.calls == -1 {
             Node::Literal(block_id)
@@ -105,7 +105,7 @@ fn get_cfg_with_root(entry: BlockID, exit: BlockID, blocks: &FxHashMap<BlockID, 
         };
         let node_idx = graph.add_node(node_weight);
         let no_dup = block_id_to_node_idx.insert(block_id, node_idx).is_none();
-        // debug_assert!(no_dup, "duplicate block id{}", block_id);
+        debug_assert!(no_dup, "duplicate block id{}", block_id);
     }
     // add edges to the graph
     for block_id in DFS::new(blocks, entry as BlockID) {
