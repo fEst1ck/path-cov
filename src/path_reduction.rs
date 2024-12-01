@@ -148,8 +148,6 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
                     if !skip {
                         // since we return immediately, we don't need to update the loop stack
                         buffer.push(block.clone());
-                    }
-                    if !skip {  
                         out.append(&mut buffer);
                     }
                     return;
