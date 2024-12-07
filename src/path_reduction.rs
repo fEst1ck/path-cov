@@ -101,7 +101,7 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
         let mut buffer = Vec::new();
         // maps a block to where it last appears in the buffer
         // this local to this function call
-        let mut loop_stack: FxHashMap<BlockID, usize> = FxHashMap::default();
+        // let mut loop_stack: FxHashMap<BlockID, usize> = FxHashMap::default();
         let first = if let Some(first) = path.first() {
             first.clone()
         } else {
@@ -113,7 +113,7 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
         stack.insert(first.clone());
         if !skip {
             buffer.push(first.clone());
-            loop_stack.insert(first.clone(), 0);
+            // loop_stack.insert(first.clone(), 0);
         }
         let lasts = self.get_last_blocks(&first);
         // println!("first {:?} lasts {:?}", first, lasts);
@@ -153,26 +153,30 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
                         *path = &path[1..];
                         continue;
                     }
-                    // appears in the buffer at `last_off`
-                    if let Some(&last_off) = loop_stack.get(&block) {
-                        // remove the blocks starting from `last_off`
-                        // println!("before drain {:?}", buffer);
-                        buffer.truncate(last_off);
-                        // println!("after drain {:?}", buffer);
-                        loop_stack.retain(|_, &mut off| off < last_off);
+                    if !loop_heads.contains(&block) {
+                        *path = &path[1..];
+                        buffer.push(block.clone());
+                        continue;
                     }
+                    // appears in the buffer at `last_off`
+                    if let Some(pos) = buffer.iter().rev().position(|x| x == &block) {
+                        // block is not in the buffer
+                        buffer.truncate(pos);
+                    }
+                    // if let Some(&last_off) = loop_stack.get(&block) {
+                    //     // remove the blocks starting from `last_off`
+                    //     // println!("before drain {:?}", buffer);
+                    //     buffer.truncate(last_off);
+                    //     // println!("after drain {:?}", buffer);
+                    //     // loop_stack.retain(|_, &mut off| off < last_off);
+                    // }
                     *path = &path[1..];
                     buffer.push(block.clone());
-                    if loop_heads.contains(&block) {
-                        loop_stack.insert(block.clone(), buffer.len() - 1);
-                    }
+                    // if loop_heads.contains(&block) {
+                    //     loop_stack.insert(block.clone(), buffer.len() - 1);
+                    // }
                 }
             } else {
-                // the current function call aborts
-                if !skip {
-                    // out.append(&mut buffer);
-                }
-                // return;
                 return buffer;
             }
         }
