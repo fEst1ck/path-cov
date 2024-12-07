@@ -81,7 +81,7 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
         let mut res = Vec::new();
         while !path.is_empty() {
             let mut stack = vec![];
-            self.simple_reduce_one_fun(&mut path, &mut stack, false, &mut res);
+            res.append(&mut self.simple_reduce_one_fun(&mut path, &mut stack, false));
             // println!("reduced one {:?}", reduced);
         }
         res
@@ -91,7 +91,7 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
         self.lasts.get(block).expect(&format!("failed to get last blocks for block {:?}", block))
     }
 
-    fn simple_reduce_one_fun(&self, path: &mut &[BlockID], stack: &mut Vec<BlockID>, skip: bool, out: &mut Vec<BlockID>) {
+    fn simple_reduce_one_fun(&self, path: &mut &[BlockID], stack: &mut Vec<BlockID>, skip: bool) -> Vec<BlockID> {
         // holds the reduced path of the current function call (including all sub-calls)
         let mut buffer = Vec::new();
         // maps a block to where it last appears in the buffer
@@ -100,7 +100,7 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
         let first = if let Some(first) = path.first() {
             first.clone()
         } else {
-            return;
+            return buffer;
         };
         // read the first block
         *path = &path[1..];
@@ -120,10 +120,10 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
                 }
             }
             if !skip {
-                out.append(&mut buffer);
+                // out.append(&mut buffer);
+                // return buffer;
             }
-            return;
-            // return buffer;
+            return buffer;
         }
         loop {
             if let Some(block) = path.first().cloned() {
@@ -131,11 +131,11 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
                 if self.firsts.contains_key(&block) {
                     // the function is on stack
                     if skip || stack.iter().rev().find(|frame| frame == &&block).is_some() {
-                        self.simple_reduce_one_fun(path, stack, true, out);
+                        self.simple_reduce_one_fun(path, stack, true);
                     } else {
                         // reduce the path of this function call
-                        // buffer.append(&mut self.simple_reduce_one_fun(path, stack, skip));
-                        self.simple_reduce_one_fun(path, stack, skip, &mut buffer);
+                        buffer.append(&mut self.simple_reduce_one_fun(path, stack, skip));
+                        // self.simple_reduce_one_fun(path, stack, skip, &mut buffer);
                     }
                 } else if lasts.contains(&block) { // we reach the end of the current function call
                     *path = &path[1..];
@@ -147,11 +147,12 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
                     }
                     if !skip {
                         // since we return immediately, we don't need to update the loop stack
-                        buffer.push(block.clone());
-                        out.append(&mut buffer);
+                        // buffer.push(block.clone());
+                        // return buffer;
+                        // out.append(&mut buffer);
                     }
-                    return;
-                    // return buffer;
+                    // return;
+                    return buffer;
                 } else { // another block in the current function call
                     if skip {
                         *path = &path[1..];
@@ -172,10 +173,10 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
             } else {
                 // the current function call aborts
                 if !skip {
-                    out.append(&mut buffer);
+                    // out.append(&mut buffer);
                 }
-                return;
-                // return buffer;
+                // return;
+                return buffer;
             }
         }
     }
