@@ -87,7 +87,7 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
     }
 
     fn simple_reduce(&self, mut path: &[BlockID]) -> Vec<BlockID> {
-        let mut res = vec![];
+        let mut res = Vec::with_capacity(1024); //vec![];
         while !path.is_empty() {
             let mut stack = FxHashSet::default();
             res.append(&mut self.simple_reduce_one_fun(&mut path, &mut stack, false));
@@ -99,7 +99,8 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
     fn get_last_blocks(&self, block: &BlockID) -> &FxHashSet<BlockID> {
         self.lasts
             .get(block)
-            .expect(&format!("failed to get last blocks for block {:?}", block))
+            .unwrap()
+            // .expect(&format!("failed to get last blocks for block {:?}", block))
     }
 
     fn simple_reduce_one_fun(
@@ -109,7 +110,7 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
         skip: bool,
     ) -> Vec<BlockID> {
         // holds the reduced path of the current function call (including all sub-calls)
-        let mut buffer = Vec::new();
+        let mut buffer = Vec::with_capacity(1024); // Vec::new();
         // maps a block to where it last appears in the buffer
         // this local to this function call
         // let mut loop_stack: FxHashMap<BlockID, usize> = FxHashMap::default();
@@ -125,7 +126,7 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
             // .expect(&format!("no loop heads for block {:?}", first));
         // read the first block
         *path = &path[1..];
-        stack.insert(first.clone());
+        stack.insert(first.clone()); // 1%
         if !skip {
             buffer.push(first.clone());
             // loop_stack.insert(first.clone(), 0);
@@ -143,22 +144,22 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
         loop {
             if let Some(block) = path.first().cloned() {
                 // block is the start of a new function
-                if self.firsts.contains_key(&block) { // TODO: 5%
+                if self.firsts.contains_key(&block) { // TODO: 5% 6.7%
                     // the function is on stack
                     if skip || stack.contains(&block) {
                         self.simple_reduce_one_fun(path, stack, true);
                     } else {
                         // reduce the path of this function call
-                        buffer.append(&mut self.simple_reduce_one_fun(path, stack, skip)); // TODO: 3%
+                        buffer.append(&mut self.simple_reduce_one_fun(path, stack, skip)); // TODO: 3% 4.27%
                         // self.simple_reduce_one_fun(path, stack, skip, &mut buffer);
                     }
-                } else if lasts.contains(&block) { // TODO: 4%
+                } else if lasts.contains(&block) { // TODO: 4% 4.5%
                     // we reach the end of the current function call
                     *path = &path[1..];
                     // stack.remove(&first);
                     if !skip {
                         stack.remove(&first);
-                        buffer.push(block.clone());
+                        buffer.push(block.clone()); // 1%
                         return buffer;
                     } else {
                         assert!(buffer.is_empty());
@@ -172,7 +173,7 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
                     }
                     if !loop_heads.contains(&block) {
                         *path = &path[1..];
-                        buffer.push(block.clone()); // TODO: 2%
+                        buffer.push(block.clone()); // TODO: 2% 2.8%
                         continue;
                     }
                     // appears in the buffer at `last_off`
