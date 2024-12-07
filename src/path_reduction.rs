@@ -1,5 +1,7 @@
 use std::{env, fmt::Debug, hash::Hash};
+use petgraph::algo::tarjan_scc;
 use rustc_hash::{FxHashMap, FxHashSet};
+use sha2::digest::block_buffer::Block;
 
 use crate::{
     convert::GNFA,
@@ -17,6 +19,9 @@ pub struct PathReducer<BlockID, FunID> {
     res: FxHashMap<FunID, RegExp<BlockID, FunID>>,
     firsts: FxHashMap<BlockID, FunID>,
     lasts: FxHashMap<BlockID, FxHashSet<BlockID>>,
+    // maps a function (identified by its first block),
+    // to the set of loop heads in the function
+    loop_heads: FxHashMap<BlockID, FxHashSet<BlockID>>,
     k: usize,
 }
 
@@ -78,9 +83,9 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
     }
 
     fn simple_reduce(&self, mut path: &[BlockID]) -> Vec<BlockID> {
-        let mut res = Vec::new();
+        let mut res = vec![];
         while !path.is_empty() {
-            let mut stack = vec![];
+            let mut stack = FxHashSet::default();
             res.append(&mut self.simple_reduce_one_fun(&mut path, &mut stack, false));
             // println!("reduced one {:?}", reduced);
         }
@@ -91,7 +96,7 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
         self.lasts.get(block).expect(&format!("failed to get last blocks for block {:?}", block))
     }
 
-    fn simple_reduce_one_fun(&self, path: &mut &[BlockID], stack: &mut Vec<BlockID>, skip: bool) -> Vec<BlockID> {
+    fn simple_reduce_one_fun(&self, path: &mut &[BlockID], stack: &mut FxHashSet<BlockID>, skip: bool) -> Vec<BlockID> {
         // holds the reduced path of the current function call (including all sub-calls)
         let mut buffer = Vec::new();
         // maps a block to where it last appears in the buffer
@@ -102,9 +107,10 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
         } else {
             return buffer;
         };
+        let loop_heads = self.loop_heads.get(&first).expect(&format!("no loop heads for block {:?}", first));
         // read the first block
         *path = &path[1..];
-        stack.push(first.clone());
+        stack.insert(first.clone());
         if !skip {
             buffer.push(first.clone());
             loop_stack.insert(first.clone(), 0);
@@ -114,14 +120,8 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
         if lasts.contains(&first) {
             // the function contains only one block
             // reach the end of the call
-            while let Some(last) = stack.pop() {
-                if last == first {
-                    break;
-                }
-            }
             if !skip {
-                // out.append(&mut buffer);
-                // return buffer;
+                stack.remove(&first);
             }
             return buffer;
         }
@@ -130,7 +130,7 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
                 // block is the start of a new function
                 if self.firsts.contains_key(&block) {
                     // the function is on stack
-                    if skip || stack.iter().rev().find(|frame| frame == &&block).is_some() {
+                    if skip || stack.contains(&block) {
                         self.simple_reduce_one_fun(path, stack, true);
                     } else {
                         // reduce the path of this function call
@@ -140,19 +140,14 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
                 } else if lasts.contains(&block) { // we reach the end of the current function call
                     *path = &path[1..];
                     // stack.remove(&first);
-                    while let Some(last) = stack.pop() {
-                        if last == first {
-                            break;
-                        }
-                    }
                     if !skip {
-                        // since we return immediately, we don't need to update the loop stack
-                        // buffer.push(block.clone());
-                        // return buffer;
-                        // out.append(&mut buffer);
+                        stack.remove(&first);
+                        buffer.push(block.clone());
+                        return buffer;
+                    } else {
+                        assert!(buffer.is_empty());
+                        return buffer;
                     }
-                    // return;
-                    return buffer;
                 } else { // another block in the current function call
                     if skip {
                         *path = &path[1..];
@@ -168,7 +163,9 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
                     }
                     *path = &path[1..];
                     buffer.push(block.clone());
-                    loop_stack.insert(block.clone(), buffer.len() - 1);
+                    if loop_heads.contains(&block) {
+                        loop_stack.insert(block.clone(), buffer.len() - 1);
+                    }
                 }
             } else {
                 // the current function call aborts
@@ -185,16 +182,55 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
 impl PathReducer<BlockID, FunID> {
     pub fn from_cfgs(cfgs: FxHashMap<FunID, CFG<BlockID, FunID>>, k: usize) -> Self {
         let lasts = last_map(&cfgs);
+
+        let mut loop_heads = FxHashMap::default();
+
+        for (fun_id, cfg) in cfgs.iter() {
+            let graph = &cfg.graph;
+            let components = tarjan_scc(graph);
+            let mut heads = FxHashSet::default();
+            for nodes in components.iter(){
+                // println!("node {:?}", node.len());
+                if nodes.len() == 1 {
+                    continue;
+                }
+                
+                for node in vec![nodes[0]] {
+                    let weight = graph.node_weight(node).unwrap();
+                    match weight {
+                        crate::convert::Node::Literal(block) => { heads.insert(block.clone()); },
+                        crate::convert::Node::Var(_) => (),
+                        crate::convert::Node::Extern => (),
+                    }
+                }
+            }
+            // if *fun_id == 346 {
+                // println!("heads {:?} out of {:?}", heads.len(), graph.node_count());
+            // }
+            loop_heads.insert(*fun_id, heads);
+        }
+
         let res = convert_cfgs(cfgs);
         let mut firsts = FxHashMap::default();
+        let mut fun_id_to_firsts = FxHashMap::default();
         for (fun_id, re) in res.iter() {
             let first = re.first();
             let old = firsts.insert(first, fun_id.clone());
             if let Some(old_fun_id) = old {
                 panic!("functions {} {} both start with block {}", old_fun_id, fun_id, first);
             }
+            fun_id_to_firsts.insert(*fun_id, first);
+
+            // if *fun_id == 346 {
+            //     println!("re: {:?}", re.size());
+            // }
+            // println!("computing loop heads for {:?}", fun_id);
+            // loop_heads.insert(first, re.loop_heads());
         }
-        Self { res, firsts, lasts, k }
+        Self { res, firsts, lasts, k, loop_heads: loop_heads.into_iter().map(|(fun_id, heads)| {
+            let first = fun_id_to_firsts.get(&fun_id).unwrap();
+            (*first, heads)
+        }).collect() }
     }
 }
 

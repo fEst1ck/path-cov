@@ -1,11 +1,9 @@
 //! Regular expressions
 
 use core::panic;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use std::{
-    fmt::Debug,
-    sync::Arc,
-    hash::Hash,
+    fmt::Debug, hash::Hash, os::raw::c_int, sync::Arc
 };
 
 /// Regular expressions over alphabet set `Alphabet`, and variable set `Name`
@@ -94,7 +92,7 @@ impl<Alphabet: Eq + Clone + Hash + Debug, Name: Eq + Clone + Hash + Debug> RegEx
     pub fn first_opt(&self) -> Option<Alphabet> {
         match self {
             RegExp::Epsilon => None,
-            RegExp::Var(x) => panic!("first: start with var {:?}", x),
+            RegExp::Var(x) => None,
             RegExp::Literal(c) => Some(c.clone()),
             RegExp::Literals(cs) => Some(cs[0].clone()),
             RegExp::Concat(re1, re2) => {
@@ -544,6 +542,43 @@ impl<Alphabet: Eq + Clone + Hash + Debug, Name: Eq + Clone + Hash + Debug> RegEx
             }
         }
         Ok((acc, s))
+    }
+}
+
+impl RegExp<c_int, c_int> {
+    fn loop_heads_acc(&self, acc: &mut FxHashSet<c_int>, visited: &mut FxHashSet<Self>) {
+        if !visited.insert(self.clone()) {
+            return;
+        }
+        match self {
+            RegExp::Epsilon | RegExp::Literal(_) | RegExp::Var(_) | Self::Literals(_) => {}
+            RegExp::Concat(r1, r2) => {
+                r1.loop_heads_acc(acc, visited);
+                r2.loop_heads_acc(acc, visited);
+            }
+            RegExp::Seq(rs) => {
+                for r in rs {
+                    r.loop_heads_acc(acc, visited);
+                }
+            }
+            RegExp::Alter(r1, r2) => {
+                r1.loop_heads_acc(acc, visited);
+                r2.loop_heads_acc(acc, visited);
+            }
+            RegExp::Star(r) => {
+                if let Some(head) = r.first_opt() {
+                    acc.insert(head);
+                }
+                r.loop_heads_acc(acc, visited);
+            }
+        }
+    }
+
+    pub fn loop_heads(&self) -> FxHashSet<c_int> {
+        let mut acc = FxHashSet::default();
+        let mut visited = FxHashSet::default();
+        self.loop_heads_acc(&mut acc, &mut visited);
+        acc
     }
 }
 
