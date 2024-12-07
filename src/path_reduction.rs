@@ -17,15 +17,18 @@ const EMPTY_PATH: &'static str = "EMPTY_PATH";
 
 pub struct PathReducer<BlockID, FunID> {
     res: FxHashMap<FunID, RegExp<BlockID, FunID>>,
-    firsts: FxHashMap<BlockID, FunID>,
-    lasts: FxHashMap<BlockID, FxHashSet<BlockID>>,
+    // firsts: FxHashMap<BlockID, FunID>,
+    firsts: Vec<FunID>,
+    // lasts: FxHashMap<BlockID, FxHashSet<BlockID>>,
+    lasts: Vec<Option<FxHashSet<BlockID>>>,
     // maps a function (identified by its first block),
     // to the set of loop heads in the function
     loop_heads: FxHashMap<BlockID, FxHashSet<BlockID>>,
     k: usize,
 }
 
-impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash + Debug>
+// impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash + Debug>
+impl
     PathReducer<BlockID, FunID>
 {
     pub fn reduce(&self, mut path: &[BlockID], _cfg: FunID) -> Vec<BlockID> {
@@ -41,13 +44,13 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
         }
         let cfg = self
             .firsts
-            .get(&path[0]).unwrap();
+            .get(path[0] as usize).unwrap();
             // .expect(&format!("no fun starts with {:?}", path[0]));
         // let re = self.res.get(&cfg).expect("invalid fun_id");
         let re = RegExp::Var(cfg.clone());
         let mut reduced_paths = Vec::new();
         while !path.is_empty() {
-            match re.parse_k(path, &self.res, &self.firsts, self.k) {
+            match re.parse_k(path, &self.res, todo!(), self.k) {
                 Ok((reduced_path, res)) => {
                     // assert!(res.len() < path.len());
                     let mut this_path = reduced_path.into_vec();
@@ -97,9 +100,9 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
     }
 
     fn get_last_blocks(&self, block: &BlockID) -> &FxHashSet<BlockID> {
-        self.lasts
-            .get(block)
-            .unwrap()
+        &self.lasts[*block as usize].as_ref().unwrap()
+            // .get(block)
+            // .unwrap()
             // .expect(&format!("failed to get last blocks for block {:?}", block))
     }
 
@@ -144,7 +147,7 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
         loop {
             if let Some(block) = path.first().cloned() {
                 // block is the start of a new function
-                if self.firsts.contains_key(&block) { // TODO: 5% 6.7%
+                if self.firsts[block as usize] != -1 { // TODO: 5% 6.7%
                     // the function is on stack
                     if skip || stack.contains(&block) {
                         self.simple_reduce_one_fun(path, stack, true);
@@ -244,12 +247,15 @@ impl PathReducer<BlockID, FunID> {
         }
 
         let res = convert_cfgs(cfgs);
-        let mut firsts = FxHashMap::default();
+        // let mut firsts = FxHashMap::default();
+        let mut firsts = vec![-1; 1024 * 128];
         let mut fun_id_to_firsts = FxHashMap::default();
         for (fun_id, re) in res.iter() {
             let first = re.first();
-            let old = firsts.insert(first, fun_id.clone());
-            if let Some(old_fun_id) = old {
+            // let old = firsts.insert(first, fun_id.clone());
+            let old_fun_id = firsts[first as usize];
+            firsts[first as usize] = *fun_id;
+            if old_fun_id != -1 {
                 panic!(
                     "functions {} {} both start with block {}",
                     old_fun_id, fun_id, first
@@ -298,32 +304,61 @@ fn convert_cfgs(
 /// Returns a map from the first block of a function to the set of exit blocks
 fn last_map(
     cfgs: &FxHashMap<FunID, CFG<BlockID, FunID>>,
-) -> FxHashMap<BlockID, FxHashSet<BlockID>> {
-    cfgs.iter()
-        // .par_bridge()
-        .map(|(_fun_id, cfg)| {
-            let first = cfg
+// ) -> FxHashMap<BlockID, FxHashSet<BlockID>> {
+) -> Vec<Option<FxHashSet<BlockID>>> {
+    let mut lasts = vec![None; 1024 * 128];
+    for (_fun_id, cfg) in cfgs.iter() {
+        let first = cfg
                 .graph
                 .node_weight(cfg.entry)
                 .unwrap()
                 .clone()
                 .to_block_id();
-            let exit_node_indices: Vec<_> = cfg
-                .graph
-                .node_indices()
-                .filter(|node_idx| cfg.graph.neighbors(*node_idx).count() == 0)
-                .collect();
-            let exit_nodes = exit_node_indices
-                .iter()
-                .map(|node_idx| {
-                    cfg.graph
-                        .node_weight(*node_idx)
-                        .unwrap()
-                        .clone()
-                        .to_block_id()
-                })
-                .collect();
-            (first, exit_nodes)
-        })
-        .collect()
+        let exit_node_indices: Vec<_> = cfg
+            .graph
+            .node_indices()
+            .filter(|node_idx| cfg.graph.neighbors(*node_idx).count() == 0)
+            .collect();
+        let exit_nodes = exit_node_indices
+            .iter()
+            .map(|node_idx| {
+                cfg.graph
+                    .node_weight(*node_idx)
+                    .unwrap()
+                    .clone()
+                    .to_block_id()
+            })
+            .collect();
+        lasts[first as usize] = Some(exit_nodes);
+    }
+    lasts
+
+
+    // cfgs.iter()
+    //     // .par_bridge()
+    //     .map(|(_fun_id, cfg)| {
+    //         let first = cfg
+    //             .graph
+    //             .node_weight(cfg.entry)
+    //             .unwrap()
+    //             .clone()
+    //             .to_block_id();
+    //         let exit_node_indices: Vec<_> = cfg
+    //             .graph
+    //             .node_indices()
+    //             .filter(|node_idx| cfg.graph.neighbors(*node_idx).count() == 0)
+    //             .collect();
+    //         let exit_nodes = exit_node_indices
+    //             .iter()
+    //             .map(|node_idx| {
+    //                 cfg.graph
+    //                     .node_weight(*node_idx)
+    //                     .unwrap()
+    //                     .clone()
+    //                     .to_block_id()
+    //             })
+    //             .collect();
+    //         (first, exit_nodes)
+    //     })
+    //     .collect()
 }
