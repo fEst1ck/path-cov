@@ -15,3 +15,6 @@ rustc-hash = "2.0.0"
 [lib]
 name = "path_reduction"
 crate-type = ["cdylib"]
+
+[profile.release]
+debug = 2
