@@ -92,7 +92,7 @@ impl
     fn simple_reduce(&self, mut path: &[BlockID]) -> Vec<BlockID> {
         let mut res = Vec::with_capacity(1024); //vec![];
         while !path.is_empty() {
-            let mut stack = FxHashSet::default();
+            let mut stack = vec![];
             res.append(&mut self.simple_reduce_one_fun(&mut path, &mut stack, false));
             // println!("reduced one {:?}", reduced);
         }
@@ -109,7 +109,7 @@ impl
     fn simple_reduce_one_fun(
         &self,
         path: &mut &[BlockID],
-        stack: &mut FxHashSet<BlockID>,
+        stack: &mut Vec<BlockID>,
         skip: bool,
     ) -> Vec<BlockID> {
         // holds the reduced path of the current function call (including all sub-calls)
@@ -129,7 +129,7 @@ impl
             // .expect(&format!("no loop heads for block {:?}", first));
         // read the first block
         *path = &path[1..];
-        stack.insert(first.clone()); // 1%
+        stack.push(first.clone());
         if !skip {
             buffer.push(first.clone());
             // loop_stack.insert(first.clone(), 0);
@@ -139,8 +139,10 @@ impl
         if lasts.contains(&first) {
             // the function contains only one block
             // reach the end of the call
-            if !skip {
-                stack.remove(&first);
+            while let Some(last) = stack.pop() {
+                if last == first {
+                    break;
+                }
             }
             return buffer;
         }
@@ -149,7 +151,7 @@ impl
                 // block is the start of a new function
                 if self.firsts[block as usize] != -1 { // TODO: 5% 6.7%
                     // the function is on stack
-                    if skip || stack.contains(&block) {
+                    if skip || stack.iter().rev().find(|frame| **frame == block).is_some() {
                         self.simple_reduce_one_fun(path, stack, true);
                     } else {
                         // reduce the path of this function call
@@ -160,8 +162,12 @@ impl
                     // we reach the end of the current function call
                     *path = &path[1..];
                     // stack.remove(&first);
+                    while let Some(last) = stack.pop() {
+                        if last == first {
+                            break;
+                        }
+                    }
                     if !skip {
-                        stack.remove(&first);
                         buffer.push(block.clone()); // 1%
                         return buffer;
                     } else {
