@@ -88,7 +88,7 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
 
     fn simple_reduce_one_fun(&self, path: &mut &[BlockID], stack: &mut Vec<BlockID>, skip: bool) -> Vec<BlockID> {
         // holds the reduced path of the current function call (including all sub-calls)
-        let mut buffer = Vec::new();
+        let mut buffer = Vec::with_capacity(1024);
         // maps a block to where it last appears in the buffer
         // this local to this function call
         let mut loop_stack: FxHashMap<BlockID, usize> = FxHashMap::default();
