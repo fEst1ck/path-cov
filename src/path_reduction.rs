@@ -23,9 +23,7 @@ pub struct PathReducer<BlockID, FunID> {
 impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash + Debug> PathReducer<BlockID, FunID> {
     pub fn reduce(&self, mut path: &[BlockID], _cfg: FunID) -> Vec<BlockID> {
         if self.k == 42 {
-            // println!("reducing path {:?}", path);
             let reduced = self.simple_reduce(&mut path);
-            // println!("reduced path {:?}", reduced);
             return reduced;
         }
         let unreduced = path;
@@ -33,13 +31,11 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
             return Vec::new();
         }
         let cfg = self.firsts.get(&path[0]).expect(&format!("no fun starts with {:?}", path[0]));
-        // let re = self.res.get(&cfg).expect("invalid fun_id");
         let re = RegExp::Var(cfg.clone());
         let mut reduced_paths = Vec::new();
         while !path.is_empty() {
             match re.parse_k(path, &self.res, &self.firsts, self.k) {
                 Ok((reduced_path, res)) => {
-                    // assert!(res.len() < path.len());
                     let mut this_path = reduced_path.into_vec();
                     reduced_paths.append(&mut this_path);
                     path = res;
@@ -82,7 +78,6 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
         while !path.is_empty() {
             let mut stack = vec![];
             res.append(&mut self.simple_reduce_one_fun(&mut path, &mut stack, false));
-            // println!("reduced one {:?}", reduced);
         }
         res
     }
@@ -110,7 +105,6 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
             loop_stack.insert(first.clone(), 0);
         }
         let lasts = self.get_last_blocks(&first);
-        // println!("first {:?} lasts {:?}", first, lasts);
         if lasts.contains(&first) {
             // the function contains only one block
             // reach the end of the call
@@ -118,10 +112,6 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
                 if last == first {
                     break;
                 }
-            }
-            if !skip {
-                // out.append(&mut buffer);
-                // return buffer;
             }
             return buffer;
         }
@@ -135,23 +125,14 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
                     } else {
                         // reduce the path of this function call
                         buffer.append(&mut self.simple_reduce_one_fun(path, stack, skip));
-                        // self.simple_reduce_one_fun(path, stack, skip, &mut buffer);
                     }
                 } else if lasts.contains(&block) { // we reach the end of the current function call
                     *path = &path[1..];
-                    // stack.remove(&first);
                     while let Some(last) = stack.pop() {
                         if last == first {
                             break;
                         }
                     }
-                    if !skip {
-                        // since we return immediately, we don't need to update the loop stack
-                        // buffer.push(block.clone());
-                        // return buffer;
-                        // out.append(&mut buffer);
-                    }
-                    // return;
                     return buffer;
                 } else { // another block in the current function call
                     if skip {
@@ -161,9 +142,7 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
                     // appears in the buffer at `last_off`
                     if let Some(&last_off) = loop_stack.get(&block) {
                         // remove the blocks starting from `last_off`
-                        // println!("before drain {:?}", buffer);
                         buffer.truncate(last_off);
-                        // println!("after drain {:?}", buffer);
                         loop_stack.retain(|_, &mut off| off < last_off);
                     }
                     *path = &path[1..];
@@ -171,11 +150,6 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
                     loop_stack.insert(block.clone(), buffer.len() - 1);
                 }
             } else {
-                // the current function call aborts
-                if !skip {
-                    // out.append(&mut buffer);
-                }
-                // return;
                 return buffer;
             }
         }
@@ -202,12 +176,9 @@ fn convert_cfgs(
     cfgs: FxHashMap<FunID, CFG<BlockID, FunID>>,
 ) -> FxHashMap<FunID, RegExp<BlockID, FunID>> {
     cfgs.into_iter()
-        // .par_bridge()
         .map(|(fun_id, cfg)| {
             let mut gnfa = GNFA::from_intern_cfg(cfg);
-            // println!("before reduce {:?}", Dot::new(&gnfa.the_graph));
             gnfa.reduce();
-            // println!("after reduce {:?}", Dot::new(&gnfa.the_graph));
             let re = gnfa.start_to_end().clone();
             (fun_id, re)
         })
