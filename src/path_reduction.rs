@@ -30,7 +30,7 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
         if path.is_empty() {
             return Vec::new();
         }
-        let cfg = self.firsts.get(&path[0]).expect(&format!("no fun starts with {:?}", path[0]));
+        let cfg = self.firsts.get(&path[0]).unwrap();
         let re = RegExp::Var(cfg.clone());
         let mut reduced_paths = Vec::new();
         while !path.is_empty() {
@@ -83,7 +83,7 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
     }
 
     fn get_last_blocks(&self, block: &BlockID) -> &FxHashSet<BlockID> {
-        self.lasts.get(block).expect(&format!("failed to get last blocks for block {:?}", block))
+        self.lasts.get(block).unwrap()
     }
 
     fn simple_reduce_one_fun(&self, path: &mut &[BlockID], stack: &mut Vec<BlockID>, skip: bool) -> Vec<BlockID> {
