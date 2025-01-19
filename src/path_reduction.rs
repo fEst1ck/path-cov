@@ -87,6 +87,7 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
     }
 
     fn simple_reduce_one_fun(&self, path: &mut &[BlockID], stack: &mut Vec<BlockID>, skip: bool) -> Vec<BlockID> {
+        let mut seen_blocks: FxHashSet<BlockID> = FxHashSet::default();
         // holds the reduced path of the current function call (including all sub-calls)
         let mut buffer = vec![];
         // maps a block to where it last appears in the buffer
@@ -97,6 +98,7 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
         } else {
             return buffer;
         };
+        seen_blocks.insert(first.clone());
         // read the first block
         *path = &path[1..];
         stack.push(first.clone());
@@ -126,8 +128,18 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
                         // reduce the path of this function call
                         buffer.append(&mut self.simple_reduce_one_fun(path, stack, skip));
                     }
+                } else if !seen_blocks.contains(&block) {
+                    seen_blocks.insert(block.clone());
+                    *path = &path[1..];
+                    if !skip {
+                        buffer.push(block.clone());
+                    }
+                    continue;
                 } else if lasts.contains(&block) { // we reach the end of the current function call
                     *path = &path[1..];
+                    if !skip {
+                        buffer.push(block.clone());
+                    }
                     while let Some(last) = stack.pop() {
                         if last == first {
                             break;
