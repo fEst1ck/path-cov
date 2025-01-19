@@ -128,13 +128,6 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
                         // reduce the path of this function call
                         buffer.append(&mut self.simple_reduce_one_fun(path, stack, skip));
                     }
-                } else if !seen_blocks.contains(&block) {
-                    seen_blocks.insert(block.clone());
-                    *path = &path[1..];
-                    if !skip {
-                        buffer.push(block.clone());
-                    }
-                    continue;
                 } else if lasts.contains(&block) { // we reach the end of the current function call
                     *path = &path[1..];
                     if !skip {
@@ -146,6 +139,13 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
                         }
                     }
                     return buffer;
+                } else if !seen_blocks.contains(&block) {
+                    seen_blocks.insert(block.clone());
+                    *path = &path[1..];
+                    if !skip {
+                        buffer.push(block.clone());
+                    }
+                    continue;
                 } else { // another block in the current function call
                     if skip {
                         *path = &path[1..];
