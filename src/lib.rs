@@ -3,5 +3,6 @@ mod convert;
 mod extern_cfg;
 mod hash;
 mod intern_cfg;
-mod path_reduction;
+pub mod path_reduction;
 mod re;
+pub mod json_parser;
