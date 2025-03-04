@@ -44,7 +44,6 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
         stack: &mut Vec<BlockID>,
         skip: bool,
     ) -> Vec<BlockID> {
-        let mut seen_blocks: FxHashSet<BlockID> = FxHashSet::default();
         // holds the reduced path of the current function call (including all sub-calls)
         let mut buffer = vec![];
         // maps a block to where it last appears in the buffer
@@ -55,7 +54,6 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
         } else {
             return buffer;
         };
-        seen_blocks.insert(first.clone());
         // read the first block
         *path = &path[1..];
         stack.push(first.clone());
@@ -97,13 +95,6 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
                         }
                     }
                     return buffer;
-                } else if !seen_blocks.contains(&block) {
-                    seen_blocks.insert(block.clone());
-                    *path = &path[1..];
-                    if !skip {
-                        buffer.push(block.clone());
-                    }
-                    continue;
                 } else {
                     // another block in the current function call
                     if skip {
