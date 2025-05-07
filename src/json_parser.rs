@@ -8,6 +8,7 @@ pub struct Function {
     pub name: String,
     pub entry_block: u32,
     pub exit_blocks: Vec<u32>,
+    pub all_blocks: Vec<u32>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -77,7 +78,8 @@ mod tests {
                 {
                     "name": "func1",
                     "entry_block": 1,
-                    "exit_blocks": [2]
+                    "exit_blocks": [2],
+                    "all_blocks": [1, 2]
                 }
             ]
         }
@@ -87,7 +89,8 @@ mod tests {
                 {
                     "name": "func2",
                     "entry_block": 3,
-                    "exit_blocks": [4, 5]
+                    "exit_blocks": [4, 5],
+                    "all_blocks": [3, 4, 5]
                 }
             ]
         }"#;
@@ -106,7 +109,7 @@ mod tests {
         assert_eq!(first_func.name, "func1");
         assert_eq!(first_func.entry_block, 1);
         assert_eq!(first_func.exit_blocks, vec![2]);
-
+        assert_eq!(first_func.all_blocks, vec![1, 2]);
         // Check second module
         let second_module = &result[1];
         assert_eq!(second_module.module_name, "test2.c");
@@ -115,5 +118,6 @@ mod tests {
         assert_eq!(second_func.name, "func2");
         assert_eq!(second_func.entry_block, 3);
         assert_eq!(second_func.exit_blocks, vec![4, 5]);
+        assert_eq!(second_func.all_blocks, vec![3, 4, 5]);
     }
 } 
