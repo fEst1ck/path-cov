@@ -32,10 +32,10 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
         res
     }
 
-    fn get_last_blocks(&self, block: &BlockID) -> &FxHashSet<BlockID> {
+    fn get_last_blocks(&self, block: &BlockID) -> Option<&FxHashSet<BlockID>> {
         // println!("get_last_blocks: {:?}", block);
         // println!("lasts: {:?}", self.lasts);
-        self.lasts.get(block).unwrap()
+        self.lasts.get(block)
     }
 
     fn simple_reduce_one_fun(
@@ -61,7 +61,11 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
             buffer.push(first.clone());
             loop_stack.insert(first.clone(), 0);
         }
-        let lasts = self.get_last_blocks(&first);
+        let lasts = if let Some(lasts) = self.get_last_blocks(&first) {
+            lasts
+        } else {
+            return self.simple_reduce_one_fun(path, stack, skip)
+        };
         if lasts.contains(&first) {
             // the function contains only one block
             // reach the end of the call
