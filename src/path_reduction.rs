@@ -64,7 +64,7 @@ impl<BlockID: Eq + Clone + Hash + Hash + Debug, FunID: Eq + Clone + Hash + Hash 
         let lasts = if let Some(lasts) = self.get_last_blocks(&first) {
             lasts
         } else {
-            return self.simple_reduce_one_fun(path, stack, skip)
+            return buffer;
         };
         if lasts.contains(&first) {
             // the function contains only one block
